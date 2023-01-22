@@ -169,7 +169,7 @@ public class NetworkUI : NetworkBehaviour
         });
 
 
-        serverButton.enabled = false;
+        // serverButton.enabled = false;
     }
 
     private void Start()
