@@ -1,0 +1,63 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using Unity.Netcode;
+//using System.Numerics;
+//using Unity.VisualScripting;
+
+
+namespace Starace.Utils
+{
+    public static class Utilities
+    {
+        private static readonly Vector3 Vector3zero = Vector3.zero;
+        private static readonly Vector3 Vector3one = Vector3.one;
+        private static readonly Vector3 Vector3yDown = new Vector3(0f, -3f, 0f);
+        public const int sortingOrderDefault = 5000;
+        public const int cellSize = 3;
+
+        public static void GetListXY(Vector3 currentPos, out int newX, out int newY)
+        {
+            newX = ((int)currentPos.x + 100) / cellSize;
+            newY = ((int)currentPos.y + -50) / -cellSize;
+        }
+
+        public static void GetWorldXY(int x, int y, out Vector3 worldPos)
+        {
+            int tempX = (x * cellSize) - 100;
+            int tempY = (y * -cellSize) + 50;
+            worldPos = new Vector3(tempX, tempY, 0);
+        }
+
+
+        /*
+        public static TextMesh CreateWorldText (string text, Transform parent = null, Vector3 localPosition = default(Vector3), int fontSize = 40, Color? color = null, TextAnchor textAnchor = TextAnchor.UpperLeft, TextAlignment textAlignment = TextAlignment.Left, int sortingOrder = sortingOrderDefault)
+        {
+            if (color == null) color = Color.white;
+            return CreateWorldText(parent, text, localPosition, fontSize, (Color)color, textAnchor, textAlignment, sortingOrder);
+        }
+
+        public static TextMesh CreateWorldText(Transform parent, string text, Vector3 localPosition, int fontSize, Color color, TextAnchor textAnchor, TextAlignment textAlignment, int sortingOrder)
+        {
+            GameObject gameObject = new GameObject("World_Text " + text, typeof(TextMesh));
+            Transform transform = gameObject.transform;
+            transform.SetParent(parent, false);
+            transform.localPosition = localPosition;
+            TextMesh textMesh = gameObject.GetComponent<TextMesh>();
+            textMesh.anchor = textAnchor;
+            textMesh.alignment = textAlignment;
+            textMesh.text = text;
+            textMesh.font = (Font)Resources.Load<Font>("/Red_Hat_Mono/RedHatMono-VariableFont_wght");
+            textMesh.fontSize = fontSize;
+            textMesh.color = color;
+            textMesh.lineSpacing = 1;
+            textMesh.offsetZ = 0;
+            textMesh.GetComponent<MeshRenderer>().sortingOrder = sortingOrder;
+            transform.GetComponent<NetworkObject>().Spawn(true);
+            return textMesh;
+        }
+        */
+    }
+}
