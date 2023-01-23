@@ -136,8 +136,10 @@ public class PlayerNetwork: NetworkBehaviour
     }
 
     [ServerRpc]
-    private void ProcessInputServerRpc(Vector2Int increment, int code, string newChar = "")
+    private void ProcessInputServerRpc(Vector2Int increment, int code, string newChar = "", ServerRpcParams serverRpcParams = default)
     {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
         int currentListX, currentListY, targetListX, targetListY;
         Vector3 origPosition = transform.position;
         // First determine the new location based on the move
@@ -148,21 +150,103 @@ public class PlayerNetwork: NetworkBehaviour
         Utilities.GetListXY(targetPos, out targetListX, out targetListY);
 
         bool move = false;
+        bool success = false;
         int x, y;
 
-        #region Log log it's better than bad it's good
-        // Log the move attempted by the user
-        /* Here's where we can get the full payload.  For now, let's track what we're going to want
-         * Date & Time
-         * Username - User ID
-         * User Type
-         * Action attempted
-         * Previous position
-         * Target position
-         * String - if applicable
-         */
-        #endregion
+        if(NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            #region new Region for Arrow Keys
+            if (code >= 1 && code <= 4)
+            {
+                MoveServerRpc(targetPos);
+                success = true;
+            }
+            #endregion
 
+            // Now because the player can move anywhere on the screen we need to check that 
+            // if they type, they are in the list.  If not, display a message, maybe draw
+            // lines for them.
+            if (code > 4)
+            {
+                if (!DocumentManager.Instance.InBounds(origPosition))
+                {
+                    // OnGUI message for the user for 3 seconds
+                    // Debug.Log("Send something to the client");
+                    ClientRpcParams clientRpcParams = new ClientRpcParams()
+                    {
+                        Send = new ClientRpcSendParams
+                        {
+                            TargetClientIds = new ulong[] { clientID },
+                        }
+                    };
+                    string eMessage = "Please return to the document to enter any text";
+                    NetworkUI.Instance.DisplayErrorMessageClientRpc(eMessage, clientRpcParams);
+                }
+                else
+                {
+                    success = true;
+                    // Process the input
+                    // New Line commands
+                    if (code == 5 || code == 6)
+                    {
+                        targetPos.x = -100;
+                        DocumentManager.Instance.InsertRow(transform.position);
+                        MoveServerRpc(targetPos);
+                        DocumentManager.Instance.PlayerBoundaryCheck();
+                    }
+
+                    // Delete
+                    if (code == 7)
+                    {
+                        DocumentManager.Instance.Delete(transform.position, true, out y, out x);
+                        MoveServerRpc(targetPos);
+                        DocumentManager.Instance.PlayerBoundaryCheck();
+                    }
+
+                    // Backspace
+                    if (code == 8)
+                    {
+                        DocumentManager.Instance.Delete(transform.position, false, out x, out y);
+                        if (y != -1)
+                        {
+                            targetPos.y = y;
+                        }
+                        if (x != -1)
+                        {
+                            targetPos.x = x;
+                        }
+                        MoveServerRpc(targetPos);
+                        DocumentManager.Instance.PlayerBoundaryCheck();
+                    }
+
+                    // Space & Tab
+                    if (code == 9 || code == 10)
+                    {
+                        // Insert character
+                        DocumentManager.Instance.InsertCharacter(transform.position, newChar);
+                        // Move player
+                        MoveServerRpc(targetPos);
+                    }
+
+                    if (code == 42)
+                    {
+                        // Insert character
+                        DocumentManager.Instance.InsertCharacter(transform.position, newChar);
+                        // Move player
+                        MoveServerRpc(targetPos);
+                    }
+                }
+            }
+        }
+
+
+
+
+
+
+
+
+        /*
         #region Arrow keys
         Vector3 newTarget = Vector3.zero;
         if (code == 1) 
@@ -186,7 +270,8 @@ public class PlayerNetwork: NetworkBehaviour
             if (move) MoveServerRpc(newTarget);
         }
         #endregion
-
+        */
+        /*
         // New Line commands
         if (code == 5 || code == 6)
         {
@@ -236,7 +321,20 @@ public class PlayerNetwork: NetworkBehaviour
             // Move player
             MoveServerRpc(targetPos);
         }
+        */
 
+
+        #region Log log it's better than bad it's good
+        // Log the move attempted by the user
+        /* Here's where we can get the full payload.  For now, let's track what we're going to want
+         * Date & Time
+         * Username - User ID
+         * User Type
+         * Action attempted
+         * Previous position
+         * Target position
+         * String - if applicable
+         */
 
         //This is where the action is logged
         docEntry = new DocumentEntry(
@@ -249,9 +347,13 @@ public class PlayerNetwork: NetworkBehaviour
             newChar,
             origPosition,
             transform.position,
-            true);
+            success);
+
+
 
         FileManager.Instance.ProcessRequest(1, new ChatMessage(), docEntry);
+
+        #endregion
     }
 
     [ServerRpc]

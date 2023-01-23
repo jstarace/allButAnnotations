@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using TMPro;
 using Unity.Netcode;
+using UnityEditor.PackageManager.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,6 +17,7 @@ public class NetworkUI : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI selectedFile;
 
     [SerializeField] private int cellSize;
+    [SerializeField] public static int cell;
 
 
     [SerializeField] private Button serverButton;
@@ -48,6 +51,7 @@ public class NetworkUI : NetworkBehaviour
 
     private GameObject[] loadedFiles;
 
+    private string displayedMessage;
     private string uName;
     public static NetworkUI Instance { set; get; }
 
@@ -55,9 +59,9 @@ public class NetworkUI : NetworkBehaviour
     private bool saveStatus = false;
     private bool uploadStatus = false;
     private bool hudStatus = true;
+    public bool displayMessage = false;
 
-
-    string[] args = System.Environment.GetCommandLineArgs();
+     string[] args = System.Environment.GetCommandLineArgs();
 
     private void Awake()
     {
@@ -68,7 +72,7 @@ public class NetworkUI : NetworkBehaviour
         loginPanel.SetActive(false);
         loadFilePanel.SetActive(false);
 
-
+        cell = cellSize;
 
         #region Development Buttons
         serverButton.onClick.AddListener(() =>
@@ -366,5 +370,58 @@ public class NetworkUI : NetworkBehaviour
         }
     }
 
+    [ClientRpc]
+    public void DisplayErrorMessageClientRpc(string errorMessage, ClientRpcParams clientRpcParams = default)
+    {
+        if (IsOwner) return;
+
+        Debug.Log(errorMessage);
+        displayedMessage= errorMessage;
+        Debug.Log("but we do change the bool");
+        ToggleDisplayMessage();
+        Debug.Log("We can tell cause, that button is showing");
+
+
+        StartCoroutine(Countdown(3));
+        //Countdown(3);
+
+        Debug.Log("but does this trigger?");
+    }
+
     #endregion
+
+    private void OnGUI()
+    {
+        if (displayMessage)
+        {
+            int w, h;
+            w = Screen.width / 2;
+            h = Screen.height / 2;
+            Debug.Log("The width is: " + w);
+            Debug.Log("The height is: " + h);
+
+            GUI.Box(new Rect(w - 300, h - 50, 600, 100), "ALERT: " + displayedMessage);
+
+            
+        }
+    }
+
+    IEnumerator Countdown (int seconds)
+    {
+        Debug.Log("We fucking here?: " + seconds);
+        int counter = seconds;
+        while(counter > 0)
+        {
+            yield return new WaitForSeconds(1);
+            Debug.Log(counter);
+            counter--;
+        }
+
+        ToggleDisplayMessage();
+    }
+
+    private void ToggleDisplayMessage()
+    {
+        displayMessage= !displayMessage;
+    }
 }

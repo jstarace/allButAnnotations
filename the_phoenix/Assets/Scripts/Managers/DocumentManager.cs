@@ -545,6 +545,30 @@ public class DocumentManager : NetworkBehaviour
     public int GetColumnCount(int row) { return _charIds[row].Count; }
     public int GetRowCount() { return _charIds.Count; }
     public ulong GetObjectID(int x, int y) { return _charIds[x][y]; }
+    
+    public bool InBounds(Vector3 pos)
+    {
+        bool result = true;
+        // so this checks if the player is in the current list
+        int xPos, yPos, xMax, yMax;
+        Utilities.GetListXY(pos, out xPos, out yPos);
+
+        yMax = GetRowCount();
+
+        if( yPos >= yMax )
+        {
+            result = false;
+            return result;
+        }
+        else
+        {
+            xMax = GetColumnCount(yPos);
+            if (xPos >= xMax) result = false;
+        }     
+     
+        return result;
+    }
+    
     #endregion
 
     #region Some Print statements for debugging
