@@ -553,6 +553,12 @@ public class DocumentManager : NetworkBehaviour
         int xPos, yPos, xMax, yMax;
         Utilities.GetListXY(pos, out xPos, out yPos);
 
+        if(xPos < 0 || yPos < 0)
+        {
+            result = false;
+            return result;
+        }
+
         yMax = GetRowCount();
 
         if( yPos >= yMax )

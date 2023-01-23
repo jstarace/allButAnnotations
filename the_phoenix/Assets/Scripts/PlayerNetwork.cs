@@ -4,16 +4,9 @@ using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using Random = UnityEngine.Random;
+using Cinemachine;
 
 
-/*
- * using Starace.Utils;
-using Unity.Collections;
-using Unity.Netcode;
-using UnityEngine;
- * 
- * 
- * */
 
 
 public class PlayerNetwork: NetworkBehaviour
@@ -67,6 +60,11 @@ public class PlayerNetwork: NetworkBehaviour
             spriteRender.color = tempColor.Value;
             var transform = gameObject.GetComponent<Transform>();
             transform.name = playerName.Value.ToString();
+            if (IsLocalPlayer)
+            {
+                CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
+            }
+            
         }
     }
 
