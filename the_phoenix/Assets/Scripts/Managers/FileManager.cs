@@ -24,9 +24,17 @@ public class FileManager : NetworkBehaviour
 
     private void Awake()
     {
-        Instance= this;
+        if(Instance != null && Instance != this)
+        {
+            Destroy(this);
+        }
+        else
+        {
+            Instance = this;
+        }
         this.sysInfo = SystemInfo.operatingSystemFamily.ToString();
         this.dataPath = Application.dataPath;
+
         Debug.Log(this.sysInfo);
         if (this.sysInfo == "Windows") 
         {
@@ -34,10 +42,11 @@ public class FileManager : NetworkBehaviour
         }
 
         currentDate = DateTime.UtcNow.ToString("MMddyyyy");
+        Debug.Log("Current UTC date: " + currentDate);
     }
     public override void OnNetworkSpawn()
     {
-        // Debug.Log("FILE MANAGER ONLINE: This is spawn");
+        Debug.Log("FILE MANAGER ONLINE: This is spawn");
         enabled = (IsServer && Instance!= null);
         this._extensions.Add(".txt");
         this._extensions.Add(".cs");
@@ -53,7 +62,7 @@ public class FileManager : NetworkBehaviour
             this._fileNames.Add("ChatPayload_" + currentDate);
             this._fileNames.Add("DocumentPayload_" + currentDate);
 
-            // Debug.Log("Here's on Spawn");
+            Debug.Log("Here's on Spawn");
             for (int i = 0; i < this._paths.Count; i++)
             {
                 // Debug.Log(i);
@@ -298,12 +307,6 @@ public class FileManager : NetworkBehaviour
 
     #endregion
 
-
-
-    // This is gonna be some funky ass shit while I figure it out...  Gotta start with a button....
-    // Clicking button opens a window to show the save location, to select a file... just getting a name here
-
-    // Button will be in the network UI.
 
     public void LoadADocument(string theName)
     {

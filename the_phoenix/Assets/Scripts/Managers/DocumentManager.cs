@@ -31,7 +31,7 @@ public class DocumentManager : NetworkBehaviour
     public bool DestroyWithSpawner;
 
     private string tempFileName;
-    private string fileType;
+    //private string fileType;
 
     [SerializeField] public TMP_InputField fileName;
     [SerializeField] private Button saveFileButton;
@@ -336,6 +336,7 @@ public class DocumentManager : NetworkBehaviour
     #region File saving
     private void TypeSelection(int index)
     {
+        string fileType;
         switch (index)
         {
             case 0:

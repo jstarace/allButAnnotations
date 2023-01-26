@@ -58,11 +58,9 @@ public class PlayerNetwork: NetworkBehaviour
             if (IsLocalPlayer)
             {
                 CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
-            }
-            
+            }   
         }
     }
-
     
     private void Update()
     {
