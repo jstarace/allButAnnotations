@@ -22,11 +22,6 @@ public class PlayerNetwork: NetworkBehaviour
     private int cellSize = 3;
     private DocumentEntry docEntry;
 
-    //public GameObject PrefabToSpawn;
-    //public bool DestroyWithSpawner;
-    //private GameObject m_PrefabInstance;
-    //private NetworkObject m_SpawnedNetworkObject;
-
     #region Initialization and update
     private void Awake()
     {
@@ -99,6 +94,7 @@ public class PlayerNetwork: NetworkBehaviour
 
     public void ProcessInput(Vector2Int newLoc, int code = 0, string newChar = "")
     {
+        #region Code definitions
         /*Code breakdown for now
          * 0 = Do nothing, just log it
          * 1 = Navigation arrows, check if target is in bounds, if so, move, if not log and return
@@ -108,9 +104,9 @@ public class PlayerNetwork: NetworkBehaviour
          * 5 = Tab or Space -> same same just different increment.  Insert a space, move cursor the same
          * 42 = Actually inserting a character
         */
-        if (!IsOwner) { return; }
+        #endregion
 
-        //Debug.Log("Code received: " + code);
+        if (!IsOwner) { return; }
         ProcessInputServerRpc(newLoc, code, newChar);
     }
 
@@ -136,14 +132,21 @@ public class PlayerNetwork: NetworkBehaviour
     [ServerRpc]
     private void ProcessInputServerRpc(Vector2Int increment, int code, string newChar = "", ServerRpcParams serverRpcParams = default)
     {
+        // Grab the id of the client making the request
         var clientID = serverRpcParams.Receive.SenderClientId;
 
+        // Declare the variables needed to do the things
         int currentListX, currentListY, targetListX, targetListY;
+
+        // Transform for the current player
         Vector3 origPosition = transform.position;
+
         // First determine the new location based on the move
         Vector3 targetPos = new Vector3(transform.position.x + increment.x, transform.position.y + increment.y, 0);
+        
         // Get the players current list position
         Utilities.GetListXY(transform.position, out currentListX, out currentListY);
+        
         // Get the players target list position
         Utilities.GetListXY(targetPos, out targetListX, out targetListY);
 
@@ -166,6 +169,7 @@ public class PlayerNetwork: NetworkBehaviour
             // lines for them.
             if (code > 4)
             {
+                /* here we check if the player is within the bounds of the document.  If they aren't we display the message */
                 if (!DocumentManager.Instance.InBounds(origPosition))
                 {
                     // OnGUI message for the user for 3 seconds
@@ -179,18 +183,17 @@ public class PlayerNetwork: NetworkBehaviour
                     };
                     string eMessage = "Please return to the document to enter any text";
                     NetworkUI.Instance.DisplayErrorMessageClientRpc(eMessage, clientRpcParams);
-                }
+                } /* if they are, we process their movement */
                 else
                 {
                     success = true;
-                    // Process the input
+
                     // New Line commands
                     if (code == 5 || code == 6)
                     {
                         targetPos.x = -100;
                         DocumentManager.Instance.InsertRow(transform.position);
                         MoveServerRpc(targetPos);
-                        DocumentManager.Instance.PlayerBoundaryCheck();
                     }
 
                     // Delete
@@ -198,23 +201,40 @@ public class PlayerNetwork: NetworkBehaviour
                     {
                         DocumentManager.Instance.Delete(transform.position, true, out y, out x);
                         MoveServerRpc(targetPos);
-                        DocumentManager.Instance.PlayerBoundaryCheck();
                     }
 
                     // Backspace
                     if (code == 8)
                     {
-                        DocumentManager.Instance.Delete(transform.position, false, out x, out y);
-                        if (y != -1)
+                        if(currentListX == 0 && currentListY == 0)
                         {
-                            targetPos.y = y;
+                            success = false;
+                            ClientRpcParams clientRpcParams = new ClientRpcParams()
+                            {
+                                Send = new ClientRpcSendParams
+                                {
+                                    TargetClientIds = new ulong[] { clientID },
+                                }
+                            };
+                            string eMessage = "You're in the first position, nothing to delete";
+                            NetworkUI.Instance.DisplayErrorMessageClientRpc(eMessage, clientRpcParams);
+
                         }
-                        if (x != -1)
+                        else
                         {
-                            targetPos.x = x;
+                            // Check if they're at the top of document, if they are, set to fail and skip move
+                            // if you're cool, pass a message.
+                            DocumentManager.Instance.Delete(transform.position, false, out x, out y);
+                            if (y != -1)
+                            {
+                                targetPos.y = y;
+                            }
+                            if (x != -1)
+                            {
+                                targetPos.x = x;
+                            }
+                            MoveServerRpc(targetPos);
                         }
-                        MoveServerRpc(targetPos);
-                        DocumentManager.Instance.PlayerBoundaryCheck();
                     }
 
                     // Space & Tab
@@ -236,91 +256,6 @@ public class PlayerNetwork: NetworkBehaviour
                 }
             }
         }
-
-
-
-
-
-
-
-
-        /*
-        #region Arrow keys
-        Vector3 newTarget = Vector3.zero;
-        if (code == 1) 
-        {
-            DocumentManager.Instance.MoveCursorRight(currentListX, currentListY, targetListX, targetListY, out move, out newTarget);
-            if (move) MoveServerRpc(newTarget);
-        }
-        if (code == 2)
-        {
-            DocumentManager.Instance.MoveCursorLeft(currentListX, currentListY, targetListX, targetListY, out move, out newTarget);
-            if (move) MoveServerRpc(newTarget);
-        }
-        if (code == 3)
-        {
-            DocumentManager.Instance.MoveCursorUp(currentListX, currentListY, targetListY, out move, out newTarget);
-            if (move) MoveServerRpc(newTarget);
-        }
-        if (code == 4)
-        {
-            DocumentManager.Instance.MoveCursorDown(currentListX, currentListY, targetListY, out move, out newTarget);
-            if (move) MoveServerRpc(newTarget);
-        }
-        #endregion
-        */
-        /*
-        // New Line commands
-        if (code == 5 || code == 6)
-        {
-            targetPos.x = -100;
-            DocumentManager.Instance.InsertRow(transform.position);
-            MoveServerRpc(targetPos);
-            DocumentManager.Instance.PlayerBoundaryCheck();
-        }
-
-        // Delete
-        if (code == 7)
-        {
-            DocumentManager.Instance.Delete(transform.position, true, out y, out x);
-            MoveServerRpc(targetPos);
-            DocumentManager.Instance.PlayerBoundaryCheck();
-        }
-
-        // Backspace
-        if (code == 8)
-        {
-            DocumentManager.Instance.Delete(transform.position, false, out x, out y);
-            if (y != -1)
-            {
-                targetPos.y = y;
-            }
-            if (x != -1)
-            {
-                targetPos.x = x;
-            }
-            MoveServerRpc(targetPos);
-            DocumentManager.Instance.PlayerBoundaryCheck();
-        }
-
-        // Space & Tab
-        if (code == 9 || code == 10)
-        {
-            // Insert character
-            DocumentManager.Instance.InsertCharacter(transform.position, newChar);
-            // Move player
-            MoveServerRpc(targetPos);
-        }
-
-        if (code == 42)
-        {
-            // Insert character
-            DocumentManager.Instance.InsertCharacter(transform.position, newChar);
-            // Move player
-            MoveServerRpc(targetPos);
-        }
-        */
-
 
         #region Log log it's better than bad it's good
         // Log the move attempted by the user
@@ -346,8 +281,6 @@ public class PlayerNetwork: NetworkBehaviour
             origPosition,
             transform.position,
             success);
-
-
 
         FileManager.Instance.ProcessRequest(1, new ChatMessage(), docEntry);
 

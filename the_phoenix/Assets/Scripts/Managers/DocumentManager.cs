@@ -174,6 +174,7 @@ public class DocumentManager : NetworkBehaviour
     #region Inserts and deletes
     public void InsertCharacter(Vector3 targetPos, string text, int code = 0)
     {
+        // targetPos refers to the target for the inserted value, not the target position of the player
         int listPosX, listPosY;
         Utilities.GetListXY(targetPos, out listPosX, out listPosY);
 

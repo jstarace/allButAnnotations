@@ -89,6 +89,7 @@ public class PlayerController : NetworkBehaviour
 
             if (!arrow && !mouse && !NetworkUI.Instance.displayMessage)
             {
+                moveDir = new Vector2Int(0, 0);
                 #region 5 - Return -> 6 - NumPad Enter
                 if (Input.GetKeyDown(KeyCode.Return))
                 {
