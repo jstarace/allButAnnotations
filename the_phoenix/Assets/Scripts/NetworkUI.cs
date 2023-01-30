@@ -374,7 +374,7 @@ public class NetworkUI : NetworkBehaviour
     public void DisplayErrorMessageClientRpc(string errorMessage, ClientRpcParams clientRpcParams = default)
     {
         if (IsOwner) return;
-
+        //DocumentManager.Instance.DrawDocumentBorders();
         Debug.Log(errorMessage);
         displayedMessage= errorMessage;
         Debug.Log("but we do change the bool");

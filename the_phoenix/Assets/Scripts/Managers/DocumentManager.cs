@@ -20,6 +20,7 @@ using System.IO;
 
 public class DocumentManager : NetworkBehaviour
 {
+
     public static DocumentManager Instance { set; get; }
     private List<List<ulong>> _charIds;
     private List<string> fileContainer;
@@ -53,7 +54,7 @@ public class DocumentManager : NetworkBehaviour
     private void Awake()
     {
         Instance = this;
-        
+
         saveFileButton.onClick.AddListener(() =>
         {
             SaveFileForUser();
@@ -79,6 +80,7 @@ public class DocumentManager : NetworkBehaviour
     {
         enabled = IsServer;
         if(!enabled || Instance == null) return;
+
         _charIds = new List<List<ulong>>
         {
             new List<ulong>()
@@ -174,10 +176,13 @@ public class DocumentManager : NetworkBehaviour
     #region Inserts and deletes
     public void InsertCharacter(Vector3 targetPos, string text, int code = 0)
     {
+
+        //charCount.Value++;
+
         // targetPos refers to the target for the inserted value, not the target position of the player
         int listPosX, listPosY;
         Utilities.GetListXY(targetPos, out listPosX, out listPosY);
-
+        
         #region This region handles creating the Network object that will hold the entered character
         if (Instance == null) return;
         m_PrefabInstance = Instantiate(PrefabToSpawn);
@@ -608,5 +613,22 @@ public class DocumentManager : NetworkBehaviour
             // Debug.Log("Row " + i + " has " + GetColumnCount(i) + " columns");
         }
     }
+
+    public void DrawDocumentBorders()
+    {
+        Debug.Log("trying to");
+        for (int i = 0; i < _charIds.Count; i++)
+        {
+            Vector3 start = new Vector3();
+            Vector3 end = new Vector3();
+            for (int j = 0; j < _charIds[i].Count; j++)
+            {
+                Utilities.GetWorldXY(i, j, out start);
+                Utilities.GetWorldXY(i, j+1, out start);
+                Debug.DrawLine(start, end, Color.white, 3);
+            }
+        }
+    }
+
     #endregion
 }
