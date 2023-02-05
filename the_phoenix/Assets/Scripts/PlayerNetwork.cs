@@ -108,9 +108,68 @@ public class PlayerNetwork: NetworkBehaviour
         ProcessInputServerRpc(newLoc, code, newChar);
     }
 
+    public void ProcessMouseInput(Vector3 downClick, Vector3 release = default(Vector3))
+    {
+        //Debug.Log("User clicked here: " + downClick + "\nuser released here: " + release);
+        //Debug.Log("Let's package and send to the server");
+        if (!IsOwner) { return; }
+
+        ProcessHighlightServerRpc(transform.position, downClick, release);
+
+/*        if(release!= default(Vector3))
+        {
+            ProcessMouseServerRpc(downClick, release);
+        }
+        else
+        {
+            Debug.Log(downClick);
+            ProcessHighlightServerRpc(downClick);
+        }*/
+        
+        
+    }
+
     #endregion
 
     #region Server RPCs
+
+    [ServerRpc]
+    private void ProcessHighlightServerRpc(Vector3 currentPos, Vector3 click, Vector3 release = default(Vector3), ServerRpcParams serverRpcParams = default)
+    {
+        //Debug.Log(click);
+        int x, y;
+        Vector3 worldPos;
+        Utilities.GetListXY(click, out x, out y);
+        Utilities.GetWorldXY(x, y, out worldPos);
+        if(currentPos == worldPos)
+        {
+            AnnotationsManager.Instance.CreateHighlight(worldPos);
+        }
+        
+
+        if(release != default(Vector3))
+        {
+            //Debug.Log("Are we triggering?");
+            Utilities.GetListXY(release, out x, out y);
+            Utilities.GetWorldXY(x, y, out worldPos);
+            MoveServerRpc(worldPos);
+        }
+    }
+
+
+    [ServerRpc]
+    private void ProcessMouseServerRpc(Vector3 down, Vector3 up, ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+        int downX, downY, upX, upY;
+        Utilities.GetListXY(down, out downX, out downY);
+        Utilities.GetListXY(up, out upX, out upY);
+        Debug.Log(string.Format("The user {0} is clicked down on ({1}, {2}) and released on ({3}, {4})", clientID.ToString(), downX.ToString(), downY.ToString(), upX.ToString(), upY.ToString()));
+
+
+
+
+    }
 
     [ServerRpc]
     private void MoveServerRpc(Vector3 dir)

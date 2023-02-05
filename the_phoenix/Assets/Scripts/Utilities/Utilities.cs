@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using Unity.Netcode;
+using static UnityEditor.FilePathAttribute;
 //using System.Numerics;
 //using Unity.VisualScripting;
 
@@ -29,6 +30,50 @@ namespace Starace.Utils
             int tempX = (x * cellSize) - 100;
             int tempY = (y * -cellSize) + 50;
             worldPos = new Vector3(tempX, tempY, 0);
+        }
+
+        public static void GetMesh(Vector3 location, out Mesh newMesh)
+        {
+            newMesh = new Mesh();
+
+            //Mesh mesh = new Mesh();
+            Vector3[] vertices = new Vector3[4];
+            Vector2[] uv = new Vector2[4];
+            int[] triangles = new int[6];
+
+            float tx, ty, bx, by;
+
+            tx = location.x - 0.5f;
+            ty = location.y + 1.5f;
+            bx = location.x + 2.5f;
+            by = location.y - 1.5f;
+
+            vertices[0] = new Vector3(tx, by, -1.0f);
+            vertices[1] = new Vector3(tx, ty, -1.0f);
+            vertices[2] = new Vector3(bx, ty, -1.0f);
+            vertices[3] = new Vector3(bx, by, -1.0f);
+
+            /*        vertices[0] = new Vector3(-100.5f, 48.5f, 0.0f);
+                    vertices[1] = new Vector3(-100.5f, 51.5f, 0.0f);
+                    vertices[2] = new Vector3(-97.5f, 51.5f, 0.0f);
+                    vertices[3] = new Vector3(-97.5f, 48.5f, 0.0f);*/
+
+            uv[0] = new Vector2(0, 0);
+            uv[1] = new Vector2(0, 1);
+            uv[2] = new Vector2(1, 1);
+            uv[3] = new Vector2(1, 0);
+
+            triangles[0] = 0;
+            triangles[1] = 1;
+            triangles[2] = 2;
+            triangles[3] = 0;
+            triangles[4] = 2;
+            triangles[5] = 3;
+
+            newMesh.vertices = vertices;
+            newMesh.uv = uv;
+            newMesh.triangles = triangles;
+
         }
 
 

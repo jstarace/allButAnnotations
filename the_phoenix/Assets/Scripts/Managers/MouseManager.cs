@@ -22,7 +22,6 @@ public class MouseManager : NetworkBehaviour
 
     private void Start()
     {
-        Debug.Log("We've started... let's try different captures and check file size");
         selectedItem.text = string.Empty;
         mouseUpItem.text = string.Empty;
     }
@@ -52,8 +51,12 @@ public class MouseManager : NetworkBehaviour
 
     private void MouseInput()
     {
+        // First we have to make sure that the player is in the document and nowhere else
+        if (ChatController.Instance.chatInput.isFocused || DocumentManager.Instance.fileName.isFocused) return;
         if (Input.GetMouseButtonDown(0))
         {
+            var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
+            var player = playerObject.GetComponent<PlayerNetwork>();
             Vector2 rayCasPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             downClick = new Vector3();
             upClick = new Vector3();
@@ -65,11 +68,15 @@ public class MouseManager : NetworkBehaviour
                 int x, y;
                 Utilities.GetListXY(hit.collider.transform.position, out x, out y);
                 selectedItem.text = string.Format("{0}, ({1}, {2})", theChar, x, y);
+                downClick = hit.collider.transform.position;
             }
+            player.ProcessMouseInput(rayCasPos);
         }
-
+        
         if(Input.GetMouseButtonUp(0))
         {
+            var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
+            var player = playerObject.GetComponent<PlayerNetwork>();
             Vector2 rayCasPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(rayCasPos, Vector2.zero);
             //Debug.Log("CLICKED HERE: (" + rayCasPos.x + ", " + rayCasPos.y + ")");
@@ -79,8 +86,15 @@ public class MouseManager : NetworkBehaviour
                 int x, y;
                 Utilities.GetListXY(hit.collider.transform.position, out x, out y);
                 mouseUpItem.text = string.Format("{0}, ({1}, {2})", theChar, x, y);
+                upClick= hit.collider.transform.position;
+                player.ProcessMouseInput(downClick, upClick);
+            }
+            else
+            {
+                player.ProcessMouseInput(downClick, rayCasPos);
             }
         }
+        
 
         if(Input.GetMouseButtonDown(1)) 
         {

@@ -61,6 +61,8 @@ public class NetworkUI : NetworkBehaviour
     private bool hudStatus = true;
     public bool displayMessage = false;
 
+    public bool drawn;
+
      string[] args = System.Environment.GetCommandLineArgs();
 
     private void Awake()
@@ -107,6 +109,7 @@ public class NetworkUI : NetworkBehaviour
         #endregion
 
         #region HUD Buttons
+
         chatButton.onClick.AddListener(() =>
         {
             if (loginPanel != null)
@@ -172,7 +175,7 @@ public class NetworkUI : NetworkBehaviour
             RequestFileLoad();
         });
 
-
+        drawn = false;
         // serverButton.enabled = false;
     }
 
@@ -185,6 +188,16 @@ public class NetworkUI : NetworkBehaviour
                 //Debug.Log("Server making it here");
                 NetworkManager.Singleton.StartServer();
             }
+        }
+    }
+
+    private void Update()
+    {
+        if (!drawn)
+        {
+            Debug.Log("we'll draw");
+            Debug.DrawLine(new Vector3(-100, 50, 0), new Vector3(-50, 0, 0), Color.yellow, 45f);
+            drawn= true;
         }
     }
 
