@@ -32,31 +32,24 @@ namespace Starace.Utils
             worldPos = new Vector3(tempX, tempY, 0);
         }
 
-        public static void GetMesh(Vector3 location, out Mesh newMesh)
+        public static void GetMesh(out Mesh newMesh)
         {
             newMesh = new Mesh();
-
-            //Mesh mesh = new Mesh();
             Vector3[] vertices = new Vector3[4];
             Vector2[] uv = new Vector2[4];
             int[] triangles = new int[6];
 
             float tx, ty, bx, by;
 
-            tx = location.x - 0.5f;
-            ty = location.y + 1.5f;
-            bx = location.x + 2.5f;
-            by = location.y - 1.5f;
+            tx = 0 - .5f;// (location.x - 0.5f);
+            ty = 0 + 1.5f;//(location.y + 1.5f);
+            bx = 0 + 2.5f;//(location.x + 2.5f);
+            by = 0 - 1.5f;//(location.y - 1.5f);
 
             vertices[0] = new Vector3(tx, by, -1.0f);
             vertices[1] = new Vector3(tx, ty, -1.0f);
             vertices[2] = new Vector3(bx, ty, -1.0f);
             vertices[3] = new Vector3(bx, by, -1.0f);
-
-            /*        vertices[0] = new Vector3(-100.5f, 48.5f, 0.0f);
-                    vertices[1] = new Vector3(-100.5f, 51.5f, 0.0f);
-                    vertices[2] = new Vector3(-97.5f, 51.5f, 0.0f);
-                    vertices[3] = new Vector3(-97.5f, 48.5f, 0.0f);*/
 
             uv[0] = new Vector2(0, 0);
             uv[1] = new Vector2(0, 1);

@@ -28,19 +28,17 @@ public class DocumentManager : NetworkBehaviour
     public GameObject PrefabToSpawn;
     private GameObject m_PrefabInstance;
     private NetworkObject m_SpawnedNetworkObject;
+    private MeshFilter m_SpawnedMeshFilter;
+
     private int cellSize = 3;
     public bool DestroyWithSpawner;
 
     private string tempFileName;
-    //private string fileType;
 
     [SerializeField] public TMP_InputField fileName;
     [SerializeField] private Button saveFileButton;
     [SerializeField] private Button dismissButton;
-
     [SerializeField] private TextMeshProUGUI confMessage;
-
-    //[SerializeField] private TMP_Text selectedType;
     [SerializeField] public TMP_Dropdown typeDropdown;
     public GameObject Confirmation = null;
     public GameObject SaveObjects = null;
@@ -91,98 +89,13 @@ public class DocumentManager : NetworkBehaviour
 
     #region Main functions to handle the document
 
-    #region Cursor movement
-    public void MoveCursorRight(int curX, int curY, int newX, int newY, out bool move, out Vector3 newTarget)
-    {
-        int eol = GetColumnCount(curY)-1;
-        int eod = GetRowCount()-1;
-        move = true;
-        newTarget = Vector3.zero;
-        if (curX == eol && curY == eod)
-        {
-            move = false;
-        }
-        else if(curX == eol && curY != eod)
-        {
-            Utilities.GetWorldXY(0, curY+1, out newTarget); 
-        }
-        else
-        {
-            Utilities.GetWorldXY(newX, newY, out newTarget);
-        }
-    }
-    public void MoveCursorLeft(int curX, int curY, int newX, int newY, out bool move, out Vector3 newTarget)
-    {
-        move = true;
-        newTarget = Vector3.zero;
-
-        if (curX == 0 && curY == 0)
-        {
-            move = false;
-        }
-        else if (curX == 0 && curY != 0)
-        {
-            Utilities.GetWorldXY(GetColumnCount(curY-1)-1, curY - 1, out newTarget);
-        }   
-        else
-        {
-            Utilities.GetWorldXY(newX, newY, out newTarget);
-        }
-            
-    }
-    public void MoveCursorUp(int curX, int curY, int newY, out bool move, out Vector3 newTarget)
-    {
-        move = true;
-        newTarget = Vector3.zero;
-        if (curY == 0) 
-        { 
-            move = false;
-            return;
-        }
-        int prevEOL = GetColumnCount(curY - 1);
-
-        if (curY != 0 && curX >= prevEOL)
-        {
-            Utilities.GetWorldXY(prevEOL-1, newY, out newTarget);
-        }
-        else
-        {
-            Utilities.GetWorldXY(curX, newY, out newTarget);
-        }
-    }
-    public void MoveCursorDown(int curX, int curY, int newY, out bool move, out Vector3 newTarget)
-    {
-        move = true;
-        newTarget = Vector3.zero;
-        int eod = GetRowCount() - 1;
-        if (curY == eod)
-        {
-            move = false;
-            return;
-        }
-        int nextEOL = GetColumnCount(curY + 1);
-        
-        if(curY != eod && curX >= nextEOL)
-        {
-            Utilities.GetWorldXY(nextEOL-1, newY, out newTarget);
-        }
-        else
-        {
-            Utilities.GetWorldXY(curX, newY,out newTarget);
-        }
-    }
-    #endregion
-
     #region Inserts and deletes
     public void InsertCharacter(Vector3 targetPos, string text, int code = 0)
     {
-
-        //charCount.Value++;
-
         // targetPos refers to the target for the inserted value, not the target position of the player
         int listPosX, listPosY;
         Utilities.GetListXY(targetPos, out listPosX, out listPosY);
-        
+
         #region This region handles creating the Network object that will hold the entered character
         if (Instance == null) return;
         m_PrefabInstance = Instantiate(PrefabToSpawn);
@@ -190,6 +103,14 @@ public class DocumentManager : NetworkBehaviour
         m_SpawnedNetworkObject = m_PrefabInstance.GetComponent<NetworkObject>();
         TextMesh tempMesh = m_SpawnedNetworkObject.GetComponent<TextMesh>();
         tempMesh.text = text;
+
+        Mesh mesh = new Mesh();
+        Utilities.GetMesh(out mesh);
+
+        var tempChild = m_PrefabInstance.transform.GetChild(0);
+        m_SpawnedMeshFilter = tempChild.GetComponent<MeshFilter>();
+        m_SpawnedMeshFilter.mesh = mesh;
+        tempChild.gameObject.SetActive(false);
         m_SpawnedNetworkObject.Spawn();
         #endregion
 
@@ -205,17 +126,20 @@ public class DocumentManager : NetworkBehaviour
             ShiftRow(listPosY, listPosX, cellSize);
             // Update the text of new object on all clients
             SetTextClientRpc(m_SpawnedNetworkObject, text);
+            AddMeshClientRpc(m_PrefabInstance);
             //Insert the new network object id into the list
             _charIds[listPosY].Insert(listPosX, id);
         }
         #endregion
     }
+
     public void InsertRow(Vector3 playerPos)
     {
-        List<ulong> newList= new List<ulong>();
+        List<ulong> newList = new List<ulong>();
         int listPosX, listPosY;
         Utilities.GetListXY(playerPos, out listPosX, out listPosY);
         Vector3 newPos;
+
         //Get End of Document(EOD) & End of Line(EOL)
         int eod = GetRowCount() - 1;
         int eol = GetColumnCount(listPosY) - 1;
@@ -224,19 +148,28 @@ public class DocumentManager : NetworkBehaviour
         m_PrefabInstance = Instantiate(PrefabToSpawn);
         m_SpawnedNetworkObject = m_PrefabInstance.GetComponent<NetworkObject>();
         TextMesh tempMesh = m_SpawnedNetworkObject.GetComponent<TextMesh>();
+
+        Mesh mesh = new Mesh();
+        Utilities.GetMesh(out mesh);
+
+        var tempChild = m_PrefabInstance.transform.GetChild(0);
+        m_SpawnedMeshFilter = tempChild.GetComponent<MeshFilter>();
+        m_SpawnedMeshFilter.mesh = mesh;
+        tempChild.gameObject.SetActive(false);
         m_SpawnedNetworkObject.Spawn();
+
         var id = m_SpawnedNetworkObject.NetworkObjectId;
 
         if (listPosY == eod)
         {
             // If we're at the end of the document and the end of the line all we need to do is add
             // An empty row with a new line and a new list to the main list
-            if(listPosX == eol)
+            if (listPosX == eol)
             {
                 newList.Add(id);
                 _charIds.Add(newList);
-                Utilities.GetWorldXY(0, listPosY+1, out newPos);
-                m_SpawnedNetworkObject.transform.position = newPos;   
+                Utilities.GetWorldXY(0, listPosY + 1, out newPos);
+                m_SpawnedNetworkObject.transform.position = newPos;
             }
             else
             {
@@ -246,7 +179,7 @@ public class DocumentManager : NetworkBehaviour
                 _charIds.Insert(listPosY, newList);
                 _charIds.Insert(listPosY, originalList);
                 _charIds.RemoveAt(listPosY + 2);
-                for(int i = listPosY; i < GetRowCount(); i++)
+                for (int i = listPosY; i < GetRowCount(); i++)
                 {
                     refreshRowPositions(i);
                 }
@@ -268,7 +201,9 @@ public class DocumentManager : NetworkBehaviour
 
         tempMesh.text = "\n";
         SetTextClientRpc(m_SpawnedNetworkObject, "\n");
+        AddMeshClientRpc(m_PrefabInstance);
     }
+
     public void Delete(Vector3 playerPos, bool isDelete, out int x, out int y)
     {
         int listPosX, listPosY;
@@ -439,12 +374,22 @@ public class DocumentManager : NetworkBehaviour
             FileManager.Instance.SaveFileClientRpc(fileName, fileIndex, clientRpcParams);
         }
     }
-
-
-
     #endregion
 
     #region ClientRpcs
+    [ClientRpc]
+    private void AddMeshClientRpc(NetworkObjectReference totalComponent)
+    {
+        Mesh mesh = new Mesh();
+        Utilities.GetMesh(out mesh);
+
+        var tempObject = ((GameObject)totalComponent);
+        var tempChild = tempObject.transform.GetChild(0);
+        var tempFilter = tempChild.GetComponent<MeshFilter>();
+        tempChild.gameObject.SetActive(false);
+        tempFilter.mesh = mesh;
+    }
+
     [ClientRpc]
     private void SetTextClientRpc(NetworkObjectReference mesh, string text)
     {
@@ -452,13 +397,11 @@ public class DocumentManager : NetworkBehaviour
         tempMesh.GetComponent<TextMesh>().text = text;
     }
 
-
     public void SetConfirmationText(string message)
     {
         Debug.Log(message);
         confMessage.text = message;
     }
-
     #endregion
 
     #region Helper functions... maybe one day we move em to utilities

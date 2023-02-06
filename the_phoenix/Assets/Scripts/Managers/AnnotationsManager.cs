@@ -45,7 +45,7 @@ public class AnnotationsManager : NetworkBehaviour
         // We have to make sure that the value always equals what may be a position in the list.
 
         Mesh mesh = new Mesh();
-        Utilities.GetMesh(location, out mesh);
+        Utilities.GetMesh(out mesh);
         m_PrefabInstance = Instantiate(PrefabToSpawn);
         m_SpawnedMeshFilter =  m_PrefabInstance.GetComponent<MeshFilter>();
         m_SpawnedMeshFilter.mesh = mesh;
@@ -62,7 +62,7 @@ public class AnnotationsManager : NetworkBehaviour
         var tempFilter = tempObject.GetComponent<MeshFilter>();
         
         Mesh mesh = new Mesh();
-        Utilities.GetMesh(location, out mesh);
+        Utilities.GetMesh(out mesh);
         tempFilter.mesh = mesh;
 
         Debug.Log(location);

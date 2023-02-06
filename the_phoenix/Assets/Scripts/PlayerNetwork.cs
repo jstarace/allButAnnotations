@@ -22,6 +22,9 @@ public class PlayerNetwork: NetworkBehaviour
     private int cellSize = 3;
     private DocumentEntry docEntry;
 
+    private bool textSelected;
+    private Vector3 mouseClickPosition;
+
     #region Initialization and update
     private void Awake()
     {
@@ -58,7 +61,9 @@ public class PlayerNetwork: NetworkBehaviour
             if (IsLocalPlayer)
             {
                 CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
-            }   
+            }
+            textSelected = false;
+            mouseClickPosition = default(Vector3);
         }
     }
     
@@ -114,19 +119,49 @@ public class PlayerNetwork: NetworkBehaviour
         //Debug.Log("Let's package and send to the server");
         if (!IsOwner) { return; }
 
-        ProcessHighlightServerRpc(transform.position, downClick, release);
+        ProcessHighlightServerRpc(transform.position, downClick, release);        
+    }
 
-/*        if(release!= default(Vector3))
+    public void ProcessSingleLeftClick(Vector3 clickLocation)
+    {
+        if (!IsOwner) return;
+        Debug.Log("User clicked here: " + clickLocation);
+
+        int x, y;
+        Vector3 targetLoc;
+        Utilities.GetListXY(clickLocation, out x, out y);
+        Utilities.GetWorldXY(x, y, out targetLoc);
+
+
+        mouseClickPosition = targetLoc;
+
+        // Here we check if there's already a selection, if yes, clear it, if not... we cool
+        if(textSelected)
         {
-            ProcessMouseServerRpc(downClick, release);
+            // Clear the highlights
+
+            // Reset the flag
+            textSelected = false;
         }
-        else
+
+        ProcessMouseMoveServerRpc(mouseClickPosition);
+
+        
+    }
+
+    public void ProcessLeftClickHold(Vector3 mousePosition)
+    {
+        int x, y;
+        Vector3 targetLoc;
+        Utilities.GetListXY(mousePosition, out x, out y);
+        Utilities.GetWorldXY(x, y, out targetLoc);
+
+        if (targetLoc != mouseClickPosition)
         {
-            Debug.Log(downClick);
-            ProcessHighlightServerRpc(downClick);
-        }*/
-        
-        
+            Debug.Log("Player moved to: " + targetLoc);
+            mouseClickPosition = targetLoc;
+        }
+        ProcessMouseMoveServerRpc(targetLoc);
     }
 
     #endregion
@@ -156,19 +191,14 @@ public class PlayerNetwork: NetworkBehaviour
         }
     }
 
-
     [ServerRpc]
-    private void ProcessMouseServerRpc(Vector3 down, Vector3 up, ServerRpcParams serverRpcParams = default)
+    private void ProcessMouseMoveServerRpc(Vector3 location, ServerRpcParams serverRpcParams = default)
     {
-        var clientID = serverRpcParams.Receive.SenderClientId;
-        int downX, downY, upX, upY;
-        Utilities.GetListXY(down, out downX, out downY);
-        Utilities.GetListXY(up, out upX, out upY);
-        Debug.Log(string.Format("The user {0} is clicked down on ({1}, {2}) and released on ({3}, {4})", clientID.ToString(), downX.ToString(), downY.ToString(), upX.ToString(), upY.ToString()));
-
-
-
-
+        //int x, y;
+        //Vector3 targetLoc;
+        //Utilities.GetListXY(location, out x, out y);
+        //Utilities.GetWorldXY(x, y, out targetLoc);
+        MoveServerRpc(location);
     }
 
     [ServerRpc]
@@ -362,7 +392,8 @@ public class PlayerNetwork: NetworkBehaviour
             {
                 var id = character.NetworkObjectId;
                 var content = character.GetComponent<TextMesh>().text;
-                LoadDocumentClientRpc(id, content, clientRpcParams);
+                bool isActive = character.transform.GetChild(0).gameObject.activeSelf;
+                LoadDocumentClientRpc(id, content, isActive, clientRpcParams);
             }
         }
     }
@@ -386,11 +417,23 @@ public class PlayerNetwork: NetworkBehaviour
     [ClientRpc]
     private void SetScalesClientRpc(Vector2 scale) { transform.localScale = scale; }
     [ClientRpc]
-    private void LoadDocumentClientRpc(ulong id, string text, ClientRpcParams clientRpcParams = default)
+    private void LoadDocumentClientRpc(ulong id, string text, bool isActive, ClientRpcParams clientRpcParams = default)
     {
         if (!IsOwner) return;
         var tempMesh = NetworkManager.SpawnManager.SpawnedObjects[id].GetComponent<TextMesh>();
         tempMesh.text = text;
+
+        var tempObject = NetworkManager.SpawnManager.SpawnedObjects[id].gameObject;
+        Mesh mesh = new Mesh();
+        Utilities.GetMesh(out mesh);
+
+        //var tempObject = ((GameObject)totalComponent);
+        var tempChild = tempObject.transform.GetChild(0);
+        var tempFilter = tempChild.GetComponent<MeshFilter>();
+        tempFilter.mesh = mesh;
+        tempChild.gameObject.SetActive(isActive);
+        Debug.Log("That was: " + isActive);
+
     }
 
     #endregion
