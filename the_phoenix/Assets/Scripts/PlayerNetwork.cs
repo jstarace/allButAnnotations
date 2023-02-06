@@ -5,9 +5,7 @@ using Unity.Netcode;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using Cinemachine;
-
-
-
+using System.Collections.Generic;
 
 public class PlayerNetwork: NetworkBehaviour
 {
@@ -24,6 +22,9 @@ public class PlayerNetwork: NetworkBehaviour
 
     private bool textSelected;
     private Vector3 mouseClickPosition;
+
+    private List<ulong> _selectedIds;
+
 
     #region Initialization and update
     private void Awake()
@@ -64,6 +65,8 @@ public class PlayerNetwork: NetworkBehaviour
             }
             textSelected = false;
             mouseClickPosition = default(Vector3);
+
+            _selectedIds = new List<ulong>();
         }
     }
     
@@ -119,7 +122,7 @@ public class PlayerNetwork: NetworkBehaviour
         //Debug.Log("Let's package and send to the server");
         if (!IsOwner) { return; }
 
-        ProcessHighlightServerRpc(transform.position, downClick, release);        
+        //ProcessHighlightServerRpc();        
     }
 
     public void ProcessSingleLeftClick(Vector3 clickLocation)
@@ -131,8 +134,6 @@ public class PlayerNetwork: NetworkBehaviour
         Vector3 targetLoc;
         Utilities.GetListXY(clickLocation, out x, out y);
         Utilities.GetWorldXY(x, y, out targetLoc);
-
-
         mouseClickPosition = targetLoc;
 
         // Here we check if there's already a selection, if yes, clear it, if not... we cool
@@ -145,8 +146,6 @@ public class PlayerNetwork: NetworkBehaviour
         }
 
         ProcessMouseMoveServerRpc(mouseClickPosition);
-
-        
     }
 
     public void ProcessLeftClickHold(Vector3 mousePosition)
@@ -158,8 +157,15 @@ public class PlayerNetwork: NetworkBehaviour
 
         if (targetLoc != mouseClickPosition)
         {
-            Debug.Log("Player moved to: " + targetLoc);
+            //Debug.Log("Player moved to: " + targetLoc);
             mouseClickPosition = targetLoc;
+            Vector2 rayCasPos = new Vector2(targetLoc.x, targetLoc.y);
+            RaycastHit2D hit = Physics2D.Raycast(rayCasPos, Vector2.zero);
+            if(hit.collider != null)
+            {
+                var test = hit.transform.gameObject.GetComponent<NetworkObject>().NetworkObjectId;
+                ProcessHighlightServerRpc(test);
+            }
         }
         ProcessMouseMoveServerRpc(targetLoc);
     }
@@ -169,35 +175,15 @@ public class PlayerNetwork: NetworkBehaviour
     #region Server RPCs
 
     [ServerRpc]
-    private void ProcessHighlightServerRpc(Vector3 currentPos, Vector3 click, Vector3 release = default(Vector3), ServerRpcParams serverRpcParams = default)
+    private void ProcessHighlightServerRpc(ulong netID, ServerRpcParams serverRpcParams = default)
     {
-        //Debug.Log(click);
-        int x, y;
-        Vector3 worldPos;
-        Utilities.GetListXY(click, out x, out y);
-        Utilities.GetWorldXY(x, y, out worldPos);
-        if(currentPos == worldPos)
-        {
-            AnnotationsManager.Instance.CreateHighlight(worldPos);
-        }
-        
-
-        if(release != default(Vector3))
-        {
-            //Debug.Log("Are we triggering?");
-            Utilities.GetListXY(release, out x, out y);
-            Utilities.GetWorldXY(x, y, out worldPos);
-            MoveServerRpc(worldPos);
-        }
+        var clientID = serverRpcParams.Receive.SenderClientId;
+        AnnotationsManager.Instance.ToggleHighlight(netID, clientID);
     }
 
     [ServerRpc]
     private void ProcessMouseMoveServerRpc(Vector3 location, ServerRpcParams serverRpcParams = default)
     {
-        //int x, y;
-        //Vector3 targetLoc;
-        //Utilities.GetListXY(location, out x, out y);
-        //Utilities.GetWorldXY(x, y, out targetLoc);
         MoveServerRpc(location);
     }
 

@@ -3,15 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class AnnotationsManager : NetworkBehaviour
 {
     public static AnnotationsManager Instance { set; get; }
-
-    public GameObject PrefabToSpawn;
-    private GameObject m_PrefabInstance;
-    private NetworkObject m_SpawnedNetworkObject;
-    private MeshFilter m_SpawnedMeshFilter;
+    private Dictionary<ulong, ulong> userSelections;
+    private Dictionary<ulong, List<ulong>> testSelections;
 
     public override void OnNetworkSpawn()
     {
@@ -28,44 +26,27 @@ public class AnnotationsManager : NetworkBehaviour
             }
         }
         if(!enabled || Instance == null) return;
-        Debug.Log("kk... only loading when network starts");
+        userSelections = new Dictionary<ulong, ulong>();
+        testSelections = new Dictionary<ulong, List<ulong>>();
     }
 
-    private void Update()
+    public void ToggleHighlight(ulong netID, ulong clientID)
     {
+        Debug.Log(netID);
 
-    }
-
-    public void CreateHighlight(Vector3 location)
-    {
-        Debug.Log("Requested creation here: " + location);
-
-        // We're going to make sure we can get a position that always lines up with a list.
-        // It's been pretty simple so far, because it was all locked down... now that it's a free world
-        // We have to make sure that the value always equals what may be a position in the list.
-
-        Mesh mesh = new Mesh();
-        Utilities.GetMesh(out mesh);
-        m_PrefabInstance = Instantiate(PrefabToSpawn);
-        m_SpawnedMeshFilter =  m_PrefabInstance.GetComponent<MeshFilter>();
-        m_SpawnedMeshFilter.mesh = mesh;
-        m_SpawnedNetworkObject = m_PrefabInstance.GetComponent<NetworkObject>();
-        m_SpawnedNetworkObject.Spawn();
-        AddMeshClientRpc(m_PrefabInstance, location);
+        var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+        var tempChild = tempObject.transform.GetChild(0);
+        bool state = tempChild.gameObject.activeSelf;
+        tempChild.gameObject.SetActive(!state);
+        ToggleHighlightClientRpc(netID, !state);
     }
 
     [ClientRpc]
-
-    private void AddMeshClientRpc(NetworkObjectReference meshFilter, Vector3 location)
+    private void ToggleHighlightClientRpc(ulong netID, bool state)
     {
-        var tempObject = ((GameObject)meshFilter);
-        var tempFilter = tempObject.GetComponent<MeshFilter>();
-        
-        Mesh mesh = new Mesh();
-        Utilities.GetMesh(out mesh);
-        tempFilter.mesh = mesh;
-
-        Debug.Log(location);
-
+        var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+        var tempChild = tempObject.transform.GetChild(0);
+        //bool state = tempChild.gameObject.activeSelf;
+        tempChild.gameObject.SetActive(state);
     }
 }
