@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using Unity.Netcode;
-using static UnityEditor.FilePathAttribute;
+//using static UnityEditor.FilePathAttribute;
 //using System.Numerics;
 //using Unity.VisualScripting;
 
