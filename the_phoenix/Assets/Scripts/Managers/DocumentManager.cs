@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 using System.IO;
+using Mono.Cecil.Cil;
 
 #region file description
 /********************************************************************************************
@@ -48,6 +49,10 @@ public class DocumentManager : NetworkBehaviour
 
     private int fileIndex;
 
+
+    private List<List<char>> clientDocument;
+    private bool configured = false;
+
     #region Initializations and startups
     private void Awake()
     {
@@ -77,8 +82,23 @@ public class DocumentManager : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         enabled = IsServer;
-        if(!enabled || Instance == null) return;
 
+        if (enabled)
+        {
+            if(Instance != null && Instance != this)
+            {
+                Destroy(this);
+            }
+            else
+            {
+                Instance = this;
+            }
+        }
+        if (!enabled || Instance == null)
+        {
+            clientDocument= new List<List<char>>();
+            return;
+        }
         _charIds = new List<List<ulong>>
         {
             new List<ulong>()
@@ -86,6 +106,157 @@ public class DocumentManager : NetworkBehaviour
         InsertCharacter(new Vector3(-100, 50, 0), "\n", 1);
     }
     #endregion
+
+    private void Update()
+    {
+        if (configured) return;
+        else
+        {
+            configured= true;
+        }
+    }
+
+    public void CheckDoc()
+    {
+        Debug.Log("Still here");
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void LoadLocalDocServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            ClientRpcParams clientRpcParams = new ClientRpcParams()
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new[] { clientID }
+                }
+            };
+            //Debug.Log("There are: " + GetRowCount() + " rows");
+            
+
+            for(int y = 0; y < GetRowCount(); y++)
+            {
+                ClientDocAddRowClientRpc(clientRpcParams);
+                for (int x=0; x < GetColumnCount(y); x++)
+                {
+                    char temp = NetworkManager.SpawnManager.SpawnedObjects[_charIds[y][x]].GetComponent<TextMesh>().text[0];
+                    ClientLoadDocClientRpc(y, temp, clientRpcParams);
+                }
+            }
+        }
+    }
+
+    [ClientRpc]
+    private void ClientLoadDocClientRpc(int y, char text, ClientRpcParams clientRpcParams = default)
+    {
+        clientDocument[y].Add(text);
+    }
+    [ClientRpc]
+    private void ClientDocAddRowClientRpc(ClientRpcParams clientRpcParams = default)
+    {
+        List<char> tempList = new List<char>();
+        clientDocument.Add(tempList);
+    }
+
+
+    public void ThisCantBeRight(Vector3 worldPos, int code)
+    {
+        Debug.Log("the servernator");
+        UpdateDocumentListClientRpc(worldPos, code);
+    }
+
+    [ClientRpc]
+    public void UpdateDocumentListClientRpc(Vector3 worldPos, int code)
+    {
+        int x, y;
+        Utilities.GetListXY(worldPos, out x, out y);
+        int eod = this.clientDocument.Count - 1;
+        int eol = this.clientDocument[y].Count - 1;
+        List<char> newList = new List<char>();
+
+        if (code == 5 || code == 6)
+        {
+            if (x == eol)
+            {
+                newList.Add('\n');
+                this.clientDocument.Add(newList);
+            }
+            else
+            {
+                List<char> original = new List<char>();
+                Utilities.SplitList(this.clientDocument[y], x, out original, out newList);
+                original.Add('\n');
+                this.clientDocument.Insert(y, newList);
+                this.clientDocument.Insert(y, original);
+                this.clientDocument.RemoveAt(y + 2);
+            }
+        }
+        else if (code == 7 || code == 8)
+        {
+            bool startOfLine = x == 0;
+            bool endOfLine = x == this.clientDocument[y].Count - 1;
+            bool topOfDocument = y == 0;
+            bool bottomOfDocument = y == this.clientDocument.Count - 1;
+
+            // 7 is true, 8 is false
+            if (code == 7)
+            {
+                if (bottomOfDocument && endOfLine) return;
+                else if (!bottomOfDocument && endOfLine)
+                {
+                    int nextRow = y + 1;
+                    Utilities.JoinTwoLists(this.clientDocument[y], this.clientDocument[nextRow], out newList);
+                    this.clientDocument[y] = newList;
+                    this.clientDocument.RemoveAt(nextRow);
+                    this.clientDocument[y].RemoveAt(x);
+                }
+                else
+                {
+                    this.clientDocument[y].RemoveAt(x);
+                }
+            }
+            else
+            {
+                if (startOfLine && topOfDocument) return;
+                else if (startOfLine && !topOfDocument)
+                {
+                    int prevRow = y - 1;
+                    int lastCharInPrev = this.clientDocument[prevRow].Count - 1;
+
+                    this.clientDocument[prevRow].RemoveAt(lastCharInPrev);
+                    Utilities.JoinTwoLists(this.clientDocument[prevRow], this.clientDocument[y], out newList);
+                    this.clientDocument[prevRow] = newList;
+                    this.clientDocument.RemoveAt(y);
+                }
+                else
+                {
+                    this.clientDocument[y].RemoveAt(x - 1);
+                }
+            }
+            // Do something else
+        }
+        else if (code == 9 || code == 10 || code == 42)
+        {
+            this.clientDocument[y].Insert(x, 'x');
+        }
+        else if (code == 42)
+        {
+            // The last thing
+        }
+        int charCount = 1;
+        for (int i = 0; i < this.clientDocument.Count; i++)
+        {
+            for (int j = 0; j < this.clientDocument[i].Count; j++)
+            {
+                charCount++;
+            }
+        }
+        Debug.Log("The count is: " + charCount);
+    }
 
     #region Main functions to handle the document
 
@@ -198,7 +369,6 @@ public class DocumentManager : NetworkBehaviour
                 refreshRowPositions(i);
             }
         }
-
         tempMesh.text = "\n";
         SetTextClientRpc(m_SpawnedNetworkObject, "\n");
         AddMeshClientRpc(m_PrefabInstance);
@@ -495,6 +665,13 @@ public class DocumentManager : NetworkBehaviour
     public int GetColumnCount(int row) { return _charIds[row].Count; }
     public int GetRowCount() { return _charIds.Count; }
     public ulong GetObjectID(int x, int y) { return _charIds[x][y]; }
+
+    public char GetChar(int x, int y)
+    {
+        char theChar = ' ';
+        theChar = NetworkManager.SpawnManager.SpawnedObjects[_charIds[y][x]].GetComponent<TextMesh>().text.ToCharArray()[0];
+        return theChar;
+    }
     
     public bool InBounds(Vector3 pos)
     {

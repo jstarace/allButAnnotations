@@ -69,6 +69,19 @@ namespace Starace.Utils
 
         }
 
+        public static void SplitList<T>(List<T> incomingList, int splitPoint, out List<T> list_1, out List<T> list_2)
+        {
+            list_1 = incomingList.GetRange(0, splitPoint);
+            list_2 = incomingList.GetRange(splitPoint, incomingList.Count - splitPoint);
+        }
+
+        public static void JoinTwoLists<T>(List<T> list_1, List<T> list_2, out List<T> tempList)
+        {
+            List<T> aList = new List<T>();
+            aList.AddRange(list_1);
+            aList.AddRange(list_2);
+            tempList = aList;
+        }
 
         /*
         public static TextMesh CreateWorldText (string text, Transform parent = null, Vector3 localPosition = default(Vector3), int fontSize = 40, Color? color = null, TextAnchor textAnchor = TextAnchor.UpperLeft, TextAlignment textAlignment = TextAlignment.Left, int sortingOrder = sortingOrderDefault)

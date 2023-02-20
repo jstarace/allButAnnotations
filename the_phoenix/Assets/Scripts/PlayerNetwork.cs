@@ -25,6 +25,8 @@ public class PlayerNetwork: NetworkBehaviour
 
     private List<ulong> _selectedIds;
 
+    private List<List<char>> documentChars;
+
 
     #region Initialization and update
     private void Awake()
@@ -62,6 +64,7 @@ public class PlayerNetwork: NetworkBehaviour
             if (IsLocalPlayer)
             {
                 CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
+                //this.documentChars = new List<List<char>> { new List<char>() };
             }
             textSelected = false;
             mouseClickPosition = default(Vector3);
@@ -82,6 +85,7 @@ public class PlayerNetwork: NetworkBehaviour
             SetScaleServerRpc(userScale);
             MoveServerRpc(new Vector3(-100, 50, 0));
             LoadDocumentServerRpc(OwnerClientId);
+            DocumentManager.Instance.LoadLocalDocServerRpc();
             isConfigured = true;
             
         }
@@ -89,6 +93,7 @@ public class PlayerNetwork: NetworkBehaviour
         {
             ChatController.Instance.JoinedChatServerRpc(playerName.Value.ToString());
             welcome = true;
+            //DocumentManager.Instance.CheckDoc();
         }
 
         if (Input.GetKeyDown(KeyCode.T))
@@ -116,6 +121,7 @@ public class PlayerNetwork: NetworkBehaviour
         ProcessInputServerRpc(newLoc, code, newChar);
     }
 
+    #region Mouse actions
     public void ProcessMouseInput(Vector3 downClick, Vector3 release = default(Vector3))
     {
         //Debug.Log("User clicked here: " + downClick + "\nuser released here: " + release);
@@ -169,10 +175,27 @@ public class PlayerNetwork: NetworkBehaviour
         }
         ProcessMouseMoveServerRpc(targetLoc);
     }
+    #endregion
+
 
     #endregion
 
     #region Server RPCs
+
+    [ServerRpc]
+    private void MoveServerRpc(Vector3 dir)
+    {
+        isMoving = true;
+        transform.position = dir;
+        isMoving = false;
+    }
+
+    [ServerRpc]
+    private void SetScaleServerRpc(Vector2 scale)
+    {
+        transform.localScale = scale;
+        SetScalesClientRpc(scale);
+    }
 
     [ServerRpc]
     private void ProcessHighlightServerRpc(ulong netID, ServerRpcParams serverRpcParams = default)
@@ -185,21 +208,6 @@ public class PlayerNetwork: NetworkBehaviour
     private void ProcessMouseMoveServerRpc(Vector3 location, ServerRpcParams serverRpcParams = default)
     {
         MoveServerRpc(location);
-    }
-
-    [ServerRpc]
-    private void MoveServerRpc(Vector3 dir)
-    {
-        isMoving= true;
-        transform.position = dir;
-        isMoving= false;
-    }
-
-    [ServerRpc]
-    private void SetScaleServerRpc(Vector2 scale)
-    {
-        transform.localScale = scale;
-        SetScalesClientRpc(scale);
     }
 
     [ServerRpc]
@@ -260,12 +268,14 @@ public class PlayerNetwork: NetworkBehaviour
                 else
                 {
                     success = true;
-
+                    //DocumentManager.Instance.ThisCantBeRight(origPosition, code);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(origPosition, code);
                     // New Line commands
                     if (code == 5 || code == 6)
                     {
                         targetPos.x = -100;
                         DocumentManager.Instance.InsertRow(transform.position);
+                        //DocumentManager.Instance.UpdateDocumentListClientRpc(origPosition, code);
                         MoveServerRpc(targetPos);
                     }
 
@@ -279,7 +289,7 @@ public class PlayerNetwork: NetworkBehaviour
                     // Backspace
                     if (code == 8)
                     {
-                        if(currentListX == 0 && currentListY == 0)
+                        if (currentListX == 0 && currentListY == 0)
                         {
                             success = false;
                             ClientRpcParams clientRpcParams = new ClientRpcParams()
@@ -378,9 +388,21 @@ public class PlayerNetwork: NetworkBehaviour
             {
                 var id = character.NetworkObjectId;
                 var content = character.GetComponent<TextMesh>().text;
+                //var content = DocumentManager.Instance.GetChar(id).ToString();
+                
                 bool isActive = character.transform.GetChild(0).gameObject.activeSelf;
                 LoadDocumentClientRpc(id, content, isActive, clientRpcParams);
             }
+        }
+
+        for(int i = 0; i < DocumentManager.Instance.GetRowCount(); i++)
+        {
+            for(int j = 0; j < DocumentManager.Instance.GetColumnCount(i); j++)
+            {
+                //char aChar = DocumentManager.Instance.GetChar(i, j);
+                //BuildDocumentListClientRpc(i, aChar, clientRpcParams);
+            }
+            //BuildDocumentListClientRpc(i, '\0', clientRpcParams);
         }
     }
 
@@ -405,21 +427,19 @@ public class PlayerNetwork: NetworkBehaviour
     [ClientRpc]
     private void LoadDocumentClientRpc(ulong id, string text, bool isActive, ClientRpcParams clientRpcParams = default)
     {
-        if (!IsOwner) return;
+        if (!IsOwner || !IsLocalPlayer) return;
         var tempMesh = NetworkManager.SpawnManager.SpawnedObjects[id].GetComponent<TextMesh>();
         tempMesh.text = text;
 
         var tempObject = NetworkManager.SpawnManager.SpawnedObjects[id].gameObject;
         Mesh mesh = new Mesh();
         Utilities.GetMesh(out mesh);
-
         //var tempObject = ((GameObject)totalComponent);
         var tempChild = tempObject.transform.GetChild(0);
         var tempFilter = tempChild.GetComponent<MeshFilter>();
         tempFilter.mesh = mesh;
         tempChild.gameObject.SetActive(isActive);
         Debug.Log("That was: " + isActive);
-
     }
 
     #endregion
