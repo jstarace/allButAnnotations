@@ -48,6 +48,7 @@ public class DocumentManager : NetworkBehaviour
     bool confObj = false;
 
     private int fileIndex;
+    private string fileType;
 
 
     private List<List<char>> clientDocument;
@@ -247,7 +248,7 @@ public class DocumentManager : NetworkBehaviour
         {
             // The last thing
         }
-        int charCount = 1;
+        int charCount = 0;
         for (int i = 0; i < this.clientDocument.Count; i++)
         {
             for (int j = 0; j < this.clientDocument[i].Count; j++)
@@ -446,7 +447,7 @@ public class DocumentManager : NetworkBehaviour
     #region File saving
     private void TypeSelection(int index)
     {
-        string fileType;
+        //string fileType;
         switch (index)
         {
             case 0:

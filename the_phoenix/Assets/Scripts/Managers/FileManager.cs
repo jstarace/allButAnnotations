@@ -35,18 +35,18 @@ public class FileManager : NetworkBehaviour
         this.sysInfo = SystemInfo.operatingSystemFamily.ToString();
         this.dataPath = Application.dataPath;
 
-        Debug.Log(this.sysInfo);
+        //Debug.Log(this.sysInfo);
         if (this.sysInfo == "Windows") 
         {
-            Debug.Log(dataPath);
+            //Debug.Log(dataPath);
         }
 
         currentDate = DateTime.UtcNow.ToString("MMddyyyy");
-        Debug.Log("Current UTC date: " + currentDate);
+        //Debug.Log("Current UTC date: " + currentDate);
     }
     public override void OnNetworkSpawn()
     {
-        Debug.Log("FILE MANAGER ONLINE: This is spawn");
+        //Debug.Log("FILE MANAGER ONLINE: This is spawn");
         enabled = (IsServer && Instance!= null);
         this._extensions.Add(".txt");
         this._extensions.Add(".cs");
@@ -62,7 +62,7 @@ public class FileManager : NetworkBehaviour
             this._fileNames.Add("ChatPayload_" + currentDate);
             this._fileNames.Add("DocumentPayload_" + currentDate);
 
-            Debug.Log("Here's on Spawn");
+            //Debug.Log("Here's on Spawn");
             for (int i = 0; i < this._paths.Count; i++)
             {
                 // Debug.Log(i);
@@ -192,7 +192,7 @@ public class FileManager : NetworkBehaviour
     public void SaveLogsServerRpc()
     {
         // Check if the json files exist... if they do, rename them 
-        Debug.Log("We here?");
+        // Debug.Log("We here?");
         // check codes 1 & 2
 
         ChatMessage message = new ChatMessage();

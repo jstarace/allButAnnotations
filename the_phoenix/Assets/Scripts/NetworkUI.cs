@@ -61,9 +61,9 @@ public class NetworkUI : NetworkBehaviour
     private bool hudStatus = true;
     public bool displayMessage = false;
 
-    public bool drawn;
+    //public bool drawn;
 
-     string[] args = System.Environment.GetCommandLineArgs();
+    string[] args = System.Environment.GetCommandLineArgs();
 
     private void Awake()
     {
@@ -175,7 +175,7 @@ public class NetworkUI : NetworkBehaviour
             RequestFileLoad();
         });
 
-        drawn = false;
+        // drawn = false;
         // serverButton.enabled = false;
     }
 
@@ -193,12 +193,7 @@ public class NetworkUI : NetworkBehaviour
 
     private void Update()
     {
-        if (!drawn)
-        {
-            Debug.Log("we'll draw");
-            Debug.DrawLine(new Vector3(-100, 50, 0), new Vector3(-50, 0, 0), Color.yellow, 45f);
-            drawn= true;
-        }
+
     }
 
     public override void OnNetworkSpawn()

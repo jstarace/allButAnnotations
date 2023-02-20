@@ -23,11 +23,6 @@ public class PlayerNetwork: NetworkBehaviour
     private bool textSelected;
     private Vector3 mouseClickPosition;
 
-    private List<ulong> _selectedIds;
-
-    private List<List<char>> documentChars;
-
-
     #region Initialization and update
     private void Awake()
     {
@@ -67,9 +62,7 @@ public class PlayerNetwork: NetworkBehaviour
                 //this.documentChars = new List<List<char>> { new List<char>() };
             }
             textSelected = false;
-            mouseClickPosition = default(Vector3);
-
-            _selectedIds = new List<ulong>();
+            mouseClickPosition = default(Vector3);   
         }
     }
     
@@ -231,7 +224,7 @@ public class PlayerNetwork: NetworkBehaviour
         // Get the players target list position
         Utilities.GetListXY(targetPos, out targetListX, out targetListY);
 
-        bool move = false;
+        //bool move = false;
         bool success = false;
         int x, y;
 
@@ -439,7 +432,7 @@ public class PlayerNetwork: NetworkBehaviour
         var tempFilter = tempChild.GetComponent<MeshFilter>();
         tempFilter.mesh = mesh;
         tempChild.gameObject.SetActive(isActive);
-        Debug.Log("That was: " + isActive);
+        // Debug.Log("That was: " + isActive);
     }
 
     #endregion
