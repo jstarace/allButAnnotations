@@ -51,6 +51,7 @@ public class DocumentManager : NetworkBehaviour
     private string fileType;
 
 
+    private Dictionary<ulong, int> selectedCount;
     private List<List<char>> clientDocument;
     private bool configured = false;
 
@@ -104,6 +105,7 @@ public class DocumentManager : NetworkBehaviour
         {
             new List<ulong>()
         };
+        selectedCount= new Dictionary<ulong, int>();
         InsertCharacter(new Vector3(-100, 50, 0), "\n", 1);
     }
     #endregion
@@ -511,6 +513,56 @@ public class DocumentManager : NetworkBehaviour
     #endregion
 
     #region ServerRpcs
+
+    [ServerRpc(RequireOwnership = false)]
+    public void ToggleHighlightServerRpc(Vector2 loc, bool value, ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            Debug.Log("hmmmm (" + loc.x + ", " + loc.y + ")");
+            var netID = _charIds[(int)loc.y][(int)loc.x];
+            var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+            var tempChild = tempObject.transform.GetChild(0);
+            bool state = tempChild.gameObject.activeSelf;
+            tempChild.gameObject.SetActive(!state);
+            ToggleHighlightClientRpc(netID, !state);
+
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void ResetHighlightsServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            for(int i=0; i<_charIds.Count; i++)
+            {
+                for(int j=0; j < _charIds[i].Count; j++)
+                {
+                    var netID = _charIds[i][j];
+                    var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+                    var tempChild = tempObject.transform.GetChild(0);
+                    bool state = tempChild.gameObject.activeSelf;
+                    tempChild.gameObject.SetActive(false);
+                    ToggleHighlightClientRpc(netID, false);
+                }
+            }
+        }
+    }
+
+    [ClientRpc]
+    private void ToggleHighlightClientRpc(ulong netID, bool state)
+    {
+        var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+        var tempChild = tempObject.transform.GetChild(0);
+        //bool state = tempChild.gameObject.activeSelf;
+        tempChild.gameObject.SetActive(state);
+    }
+
     [ServerRpc(RequireOwnership = false)]
     private void ExportFileServerRpc(string fileName, int fileIndex, ServerRpcParams serverRpcParams = default)
     {
@@ -703,6 +755,55 @@ public class DocumentManager : NetworkBehaviour
         return result;
     }
     
+    public int GetLocalColumnCount(int y)
+    {
+        if(y >= clientDocument.Count)
+        {
+            return clientDocument[clientDocument.Count - 1].Count; 
+        }
+        else if(y < 0)
+        {
+            return clientDocument[0].Count;
+        }
+        else
+        {
+            return clientDocument[y].Count;
+        }   
+    }
+
+    public int GetLocalRowCount()
+    {
+        return clientDocument.Count;
+    }
+
+    public bool LocalInBounds(Vector3 pos)
+    {
+        bool result = true;
+        // so this checks if the player is in the current list
+        int xPos, yPos, xMax, yMax;
+        Utilities.GetListXY(pos, out xPos, out yPos);
+
+        if (xPos < 0 || yPos < 0)
+        {
+            result = false;
+            return result;
+        }
+
+        yMax = clientDocument.Count;
+
+        if (yPos >= yMax)
+        {
+            result = false;
+            return result;
+        }
+        else
+        {
+            xMax = clientDocument[yPos].Count;
+            if (xPos >= xMax) result = false;
+        }
+
+        return result;
+    }
     #endregion
 
     #region Some Print statements for debugging
@@ -752,4 +853,7 @@ public class DocumentManager : NetworkBehaviour
     }
 
     #endregion
+
+
+
 }

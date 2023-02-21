@@ -23,6 +23,8 @@ public class PlayerNetwork: NetworkBehaviour
     private bool textSelected;
     private Vector3 mouseClickPosition;
 
+    private Dictionary<Vector2, bool> localSelection;
+
     #region Initialization and update
     private void Awake()
     {
@@ -59,6 +61,7 @@ public class PlayerNetwork: NetworkBehaviour
             if (IsLocalPlayer)
             {
                 CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
+                localSelection = new Dictionary<Vector2, bool>();
                 //this.documentChars = new List<List<char>> { new List<char>() };
             }
             textSelected = false;
@@ -95,7 +98,7 @@ public class PlayerNetwork: NetworkBehaviour
         }
 
     }
-
+    #endregion
     public void ProcessInput(Vector2Int newLoc, int code = 0, string newChar = "")
     {
         #region Code definitions
@@ -112,22 +115,17 @@ public class PlayerNetwork: NetworkBehaviour
 
         if (!IsOwner) { return; }
         ProcessInputServerRpc(newLoc, code, newChar);
+        DocumentManager.Instance.ResetHighlightsServerRpc();
     }
 
     #region Mouse actions
-    public void ProcessMouseInput(Vector3 downClick, Vector3 release = default(Vector3))
-    {
-        //Debug.Log("User clicked here: " + downClick + "\nuser released here: " + release);
-        //Debug.Log("Let's package and send to the server");
-        if (!IsOwner) { return; }
-
-        //ProcessHighlightServerRpc();        
-    }
 
     public void ProcessSingleLeftClick(Vector3 clickLocation)
     {
         if (!IsOwner) return;
-        Debug.Log("User clicked here: " + clickLocation);
+        DocumentManager.Instance.ResetHighlightsServerRpc();
+        //Debug.Log("User clicked here: " + clickLocation);
+        //DocumentManager.Instance.CheckDoc();
 
         int x, y;
         Vector3 targetLoc;
@@ -139,39 +137,186 @@ public class PlayerNetwork: NetworkBehaviour
         if(textSelected)
         {
             // Clear the highlights
+            DocumentManager.Instance.ResetHighlightsServerRpc();
 
+            // Reset the dictionary
+            localSelection = new Dictionary<Vector2, bool>();
             // Reset the flag
             textSelected = false;
         }
-
+        // move the user
         ProcessMouseMoveServerRpc(mouseClickPosition);
+
+        //Check if click is in the document
+
+        if (DocumentManager.Instance.LocalInBounds(mouseClickPosition))
+        {
+            textSelected = true;
+            localSelection.Add(new Vector2(x, y), true);
+            Debug.Log("Added (" + x+ ", " + y + ")");
+        }
+        
+    }
+
+    private void PreProcessHighlight(Vector2 loc)
+    {
+        if(!localSelection.TryGetValue(loc, out bool value))
+        {
+            value = true;
+            localSelection.Add(loc, value);
+        }
+        else
+        {
+            value = !localSelection[loc];
+            localSelection[loc] = value;
+        }
+
+        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);
     }
 
     public void ProcessLeftClickHold(Vector3 mousePosition)
     {
-        int x, y;
+        int newX, newY;
         Vector3 targetLoc;
-        Utilities.GetListXY(mousePosition, out x, out y);
-        Utilities.GetWorldXY(x, y, out targetLoc);
+        Utilities.GetListXY(mousePosition, out newX, out newY);
+        Utilities.GetWorldXY(newX, newY, out targetLoc);
 
+        /* Here's where the fun will happen... Let me type out my thoughts
+         * First thing.  Check to see if we moved.  If we did, did we move a column or a row?
+         * Are we still in the document?  Are we do the right or left of the document?
+         * How many in between?
+         * 
+        */ 
         if (targetLoc != mouseClickPosition)
         {
-            //Debug.Log("Player moved to: " + targetLoc);
+            // Let's get the original x and y
+            int origX, origY;
+            Utilities.GetListXY(mouseClickPosition, out origX, out origY);
+            int maxY = DocumentManager.Instance.GetLocalRowCount();
+
+            if (origY > maxY && newY > maxY)
+            {
+                origY= maxY;
+                newY = maxY;
+            }
+            if(origY < 0 && newY < 0)
+            {
+                origY = 0;
+                newY = 0;
+            }
+            if(origY != newY)
+            {
+                int[] yBounds = { origY, newY };
+                int[] xBounds = { origX, newX };
+                
+                if(origX < 0)
+                {
+                    origX = 0;
+                }
+                if(newX < 0)
+                {
+                    newX = 0;
+                }
+                // Is the new location below the old
+                if (origY < newY && origY < DocumentManager.Instance.GetLocalRowCount())
+                {
+                    for(int i = origX; i < DocumentManager.Instance.GetLocalColumnCount(yBounds[0]); i++)
+                    {
+                        PreProcessHighlight(new Vector2(i, origY));
+                    }
+                    int xLimit = DocumentManager.Instance.GetLocalColumnCount(yBounds[1]);
+                    if (newX <= origX)
+                    {
+                        for (int i = 0; i < origX; i++)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                        }
+                    }
+                    else if(newX > xLimit)
+                    {
+                        for (int i = 0; i < xLimit; i++)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                        }
+                    }
+                }
+                else if(origY > newY)
+                {
+                    for (int i = origX; i >= 0; i--)
+                    {
+                        PreProcessHighlight(new Vector2(i, origY));
+                    }
+                    int xLimit = DocumentManager.Instance.GetLocalColumnCount(yBounds[1])-1;
+
+                    if (newX >= 0)
+                    {
+                        for (int i = xLimit; i >= newX; i--)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                int xLimit = DocumentManager.Instance.GetLocalColumnCount(newY);
+                if (origX < newX && newX > -1)
+                {
+                    if(newX <= xLimit)
+                    {
+                        for(int i = origX-1; i<newX; i++)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                            //Debug.Log("(" + i + ", " + newY + ")");
+                        }
+                    }
+                    else
+                    {
+                        for(int i = origX; i<xLimit; i++)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                            //Debug.Log("(" + i + ", " + newY + ")");
+                        }
+                    }
+                }
+                else if( origX > newX && newX < xLimit )
+                {
+                    if(newX <= 0)
+                    {
+                        for (int i = origX; i > -1; i--)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                            //Debug.Log("(" + i + ", " + newY + ")");
+                        }
+                    }
+                    else
+                    {
+                        for (int i = origX; i > newX; i--)
+                        {
+                            PreProcessHighlight(new Vector2(i, newY));
+                            //Debug.Log("(" + i + ", " + newY + ")");
+                        }
+                    }
+                }
+            }
+
             mouseClickPosition = targetLoc;
+            /*
             Vector2 rayCasPos = new Vector2(targetLoc.x, targetLoc.y);
             RaycastHit2D hit = Physics2D.Raycast(rayCasPos, Vector2.zero);
             if(hit.collider != null)
             {
                 var test = hit.transform.gameObject.GetComponent<NetworkObject>().NetworkObjectId;
-                ProcessHighlightServerRpc(test);
+                //ProcessHighlightServerRpc(test);
             }
+            */
         }
         ProcessMouseMoveServerRpc(targetLoc);
     }
     #endregion
 
 
-    #endregion
+
 
     #region Server RPCs
 
