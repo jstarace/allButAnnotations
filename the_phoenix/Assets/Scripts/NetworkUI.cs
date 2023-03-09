@@ -405,12 +405,7 @@ public class NetworkUI : NetworkBehaviour
             int w, h;
             w = Screen.width / 2;
             h = Screen.height / 2;
-            Debug.Log("The width is: " + w);
-            Debug.Log("The height is: " + h);
-
             GUI.Box(new Rect(w - 300, h - 50, 600, 100), "ALERT: " + displayedMessage);
-
-            
         }
     }
 

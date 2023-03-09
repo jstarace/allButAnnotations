@@ -22,6 +22,7 @@ public class PlayerNetwork: NetworkBehaviour
 
     private bool textSelected;
     private Vector3 mouseClickPosition;
+    private Vector3 mousePreviousPosition;
 
     private Dictionary<Vector2, bool> localSelection;
 
@@ -65,7 +66,8 @@ public class PlayerNetwork: NetworkBehaviour
                 //this.documentChars = new List<List<char>> { new List<char>() };
             }
             textSelected = false;
-            mouseClickPosition = default(Vector3);   
+            mouseClickPosition = default(Vector3);
+            mousePreviousPosition= default(Vector3);
         }
     }
     
@@ -97,6 +99,11 @@ public class PlayerNetwork: NetworkBehaviour
             tempColor.Value = Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
         }
 
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            DocumentManager.Instance.CheckDoc();
+        }
+
     }
     #endregion
     public void ProcessInput(Vector2Int newLoc, int code = 0, string newChar = "")
@@ -124,14 +131,23 @@ public class PlayerNetwork: NetworkBehaviour
     {
         if (!IsOwner) return;
         DocumentManager.Instance.ResetHighlightsServerRpc();
-        //Debug.Log("User clicked here: " + clickLocation);
-        //DocumentManager.Instance.CheckDoc();
 
         int x, y;
         Vector3 targetLoc;
         Utilities.GetListXY(clickLocation, out x, out y);
         Utilities.GetWorldXY(x, y, out targetLoc);
         mouseClickPosition = targetLoc;
+        mousePreviousPosition= targetLoc;
+
+        if (DocumentManager.Instance.LocalInBounds(clickLocation))
+        {
+            Debug.Log("Inbounds");
+        }
+        else
+        {
+            Debug.Log("Missed it by that much");
+        }
+        
 
         // Here we check if there's already a selection, if yes, clear it, if not... we cool
         if(textSelected)
@@ -149,18 +165,18 @@ public class PlayerNetwork: NetworkBehaviour
 
         //Check if click is in the document
 
-        if (DocumentManager.Instance.LocalInBounds(mouseClickPosition))
+/*        if (DocumentManager.Instance.LocalInBounds(mouseClickPosition))
         {
             textSelected = true;
             localSelection.Add(new Vector2(x, y), true);
             Debug.Log("Added (" + x+ ", " + y + ")");
         }
-        
+        */
     }
 
     private void PreProcessHighlight(Vector2 loc)
     {
-        if(!localSelection.TryGetValue(loc, out bool value))
+        if (!localSelection.TryGetValue(loc, out bool value))
         {
             value = true;
             localSelection.Add(loc, value);
@@ -174,19 +190,162 @@ public class PlayerNetwork: NetworkBehaviour
         DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);
     }
 
+
     public void ProcessLeftClickHold(Vector3 mousePosition)
     {
-        int newX, newY;
+        int newX, newY, origX, origY, prevX, prevY;
         Vector3 targetLoc;
+        Utilities.GetListXY(mousePreviousPosition, out prevX, out prevY);
+        Utilities.GetListXY(mouseClickPosition, out origX, out origY);
         Utilities.GetListXY(mousePosition, out newX, out newY);
         Utilities.GetWorldXY(newX, newY, out targetLoc);
 
-        /* Here's where the fun will happen... Let me type out my thoughts
+        /* 
+         * We have to take into consideration that this will be a constant stream of data
+         * So, if the player is just clicking and holding, we don't want to continuing
+         * processing anything and just return... right?
+         *         
+        */
+
+        var inbounds = DocumentManager.Instance.LocalInBounds(mousePosition);
+        if (prevX == newX && prevY == newY)
+        {
+            return;
+        }
+        else
+        {
+            ProcessMouseMoveServerRpc(targetLoc);
+
+            /*
+             * Now let's check boundarys.  We want the player to be able to move whereever they want
+             * But we don't want to worry about highlighting anything outside of the document, so we can
+             * do some things to check it out.
+             * 
+            */
+            
+
+            if(newY == origY)
+            {
+                if(newX > origX)
+                {
+                    if(newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
+                    else if(newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                }
+                else if(newX <= origX)
+                {
+                    if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                    else if(newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX-1, newY));
+                }
+                else
+                {
+                    if (inbounds) PreProcessHighlight(new Vector2(newX, newY));   
+                }
+
+                //TODO: Handle the logic of returning to this line from above and below
+            }
+            else if(newY > origY)
+            {
+                int maxY = DocumentManager.Instance.GetLocalRowCount();
+                
+                if(newY > prevY && newY < maxY)//inbounds)
+                {
+                    for(int i = prevY; i <= newY; i++)
+                    {
+                        if (i == prevY)
+                        {
+                            for(int j = prevX; j < DocumentManager.Instance.GetLocalColumnCount(i); j++)
+                            {
+                                PreProcessHighlight(new Vector2(j, i));
+                            }
+                        }
+                        else
+                        {
+                            var maxX = DocumentManager.Instance.GetLocalColumnCount(i);
+                            if(newX < maxX)
+                            {
+                                for (int j = 0; j < newX; j++)
+                                {
+                                    PreProcessHighlight(new Vector2(j, i));
+                                }
+                            }
+                            else
+                            {
+                                for (int j = 0; j < maxX; j++)
+                                {
+                                    PreProcessHighlight(new Vector2(j, i));
+                                }
+                            }
+
+                        }
+                    }
+                }
+                else if(newY < prevY && newY < maxY)
+                {
+                    for(int i = prevY; i >= newY; i--)
+                    {
+                        if(i == prevY)
+                        {
+                            var maxX = DocumentManager.Instance.GetLocalColumnCount(i);
+                            if(prevX < maxX)
+                            {
+                                for (int j = maxX-1; j>=0; j--)
+                                {
+                                    PreProcessHighlight(new Vector2(j, i));
+                                }
+                            }
+                            else
+                            {
+                                for (int j = prevX - 1; j >= 0; j--)
+                                {
+                                    PreProcessHighlight(new Vector2(j, i));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (int j = DocumentManager.Instance.GetLocalColumnCount(newY)+1; j >= newX; j--)
+                            {
+                                PreProcessHighlight(new Vector2(j, i));
+                            }
+                        }
+                    }
+                }
+                else if(newY == prevY)
+                {
+                    Debug.Log("You stayed in the same place");
+                }
+            }
+            else if(newY < origY)
+            {
+                
+
+            }
+
+
+
+            mousePreviousPosition = mousePosition;
+            return;
+        }
+
+
+        /* 
+         * Here's where the fun will happen... Let me type out my thoughts
          * First thing.  Check to see if we moved.  If we did, did we move a column or a row?
          * Are we still in the document?  Are we do the right or left of the document?
          * How many in between?
          * 
+         * I don't think we need to check movement.  Let's think it out.  The first click is always going
+         * to be constant and in place.  We shouldn't be adding the first click no matter what.  it should only be added
+         * when we highlight in one direction or another...
+         * 
+         * To the right and down it's included
+         * To the left and up it's excluded
+         * 
         */ 
+
+
+
+        /*
         if (targetLoc != mouseClickPosition)
         {
             // Let's get the original x and y
@@ -301,7 +460,7 @@ public class PlayerNetwork: NetworkBehaviour
             }
 
             mouseClickPosition = targetLoc;
-            /*
+            
             Vector2 rayCasPos = new Vector2(targetLoc.x, targetLoc.y);
             RaycastHit2D hit = Physics2D.Raycast(rayCasPos, Vector2.zero);
             if(hit.collider != null)
@@ -309,9 +468,9 @@ public class PlayerNetwork: NetworkBehaviour
                 var test = hit.transform.gameObject.GetComponent<NetworkObject>().NetworkObjectId;
                 //ProcessHighlightServerRpc(test);
             }
-            */
-        }
-        ProcessMouseMoveServerRpc(targetLoc);
+            
+        }*/
+        //ProcessMouseMoveServerRpc(targetLoc);
     }
     #endregion
 
@@ -407,7 +566,7 @@ public class PlayerNetwork: NetworkBehaviour
                 {
                     success = true;
                     //DocumentManager.Instance.ThisCantBeRight(origPosition, code);
-                    DocumentManager.Instance.UpdateDocumentListClientRpc(origPosition, code);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(origPosition, code, newChar);
                     // New Line commands
                     if (code == 5 || code == 6)
                     {

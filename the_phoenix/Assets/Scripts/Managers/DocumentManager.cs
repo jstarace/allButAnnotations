@@ -112,17 +112,22 @@ public class DocumentManager : NetworkBehaviour
 
     private void Update()
     {
-        if (configured) return;
-        else
-        {
-            configured= true;
-        }
+
     }
 
     public void CheckDoc()
     {
         Debug.Log("Still here");
+        for(int i = 0; i<clientDocument.Count; i++)
+        {
+            for(int j = 0; j < clientDocument[i].Count; j++)
+            {
+                Debug.Log(clientDocument[i][j]);
+            }
+        }
     }
+
+    #region Loading the local copy of the open document
 
     [ServerRpc(RequireOwnership = false)]
     public void LoadLocalDocServerRpc(ServerRpcParams serverRpcParams = default)
@@ -138,9 +143,7 @@ public class DocumentManager : NetworkBehaviour
                     TargetClientIds = new[] { clientID }
                 }
             };
-            //Debug.Log("There are: " + GetRowCount() + " rows");
-            
-
+  
             for(int y = 0; y < GetRowCount(); y++)
             {
                 ClientDocAddRowClientRpc(clientRpcParams);
@@ -164,17 +167,12 @@ public class DocumentManager : NetworkBehaviour
         List<char> tempList = new List<char>();
         clientDocument.Add(tempList);
     }
-
-
-    public void ThisCantBeRight(Vector3 worldPos, int code)
-    {
-        Debug.Log("the servernator");
-        UpdateDocumentListClientRpc(worldPos, code);
-    }
+    #endregion
 
     [ClientRpc]
-    public void UpdateDocumentListClientRpc(Vector3 worldPos, int code)
+    public void UpdateDocumentListClientRpc(Vector3 worldPos, int code, string newChar = "")
     {
+        if (IsServer) return;
         int x, y;
         Utilities.GetListXY(worldPos, out x, out y);
         int eod = this.clientDocument.Count - 1;
@@ -244,7 +242,8 @@ public class DocumentManager : NetworkBehaviour
         }
         else if (code == 9 || code == 10 || code == 42)
         {
-            this.clientDocument[y].Insert(x, 'x');
+            //Debug.Log(newChar);
+            this.clientDocument[y].Insert(x, newChar[0]);
         }
         else if (code == 42)
         {
@@ -521,7 +520,8 @@ public class DocumentManager : NetworkBehaviour
 
         if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-            Debug.Log("hmmmm (" + loc.x + ", " + loc.y + ")");
+            Vector3 worldPos = new Vector3(loc.x, loc.y);
+            Debug.Log("Here's the pos: (" + worldPos.x + ", " + worldPos.y +")");
             var netID = _charIds[(int)loc.y][(int)loc.x];
             var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
             var tempChild = tempObject.transform.GetChild(0);
