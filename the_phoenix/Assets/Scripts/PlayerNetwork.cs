@@ -221,17 +221,27 @@ public class PlayerNetwork: NetworkBehaviour
              * But we don't want to worry about highlighting anything outside of the document, so we can
              * do some things to check it out.
              * 
+             * 
+             * So we're splitting the field into 3 areas
+             * 1. Above the origination line
+             * 2. Below the origination line
+             * 3. The origination line
+             * 
+             * The code handles it in 2, 3, 1.
             */
-            
+            if (newX < 0) newX = 0;
+            if (prevX < 0) prevX = 0;
+            if (newX >= DocumentManager.Instance.GetLocalColumnCount(newY)) newX = DocumentManager.Instance.GetLocalColumnCount(newY) - 1;
+            if (prevX >= DocumentManager.Instance.GetLocalColumnCount(prevY)) prevX = DocumentManager.Instance.GetLocalColumnCount(prevY) - 1;
 
-            if(newY == origY)
+            if (newY == origY && prevY == origY)  // This handles highlighting the same line
             {
                 if(newX > origX)
                 {
                     if(newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
                     else if(newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
                 }
-                else if(newX <= origX)
+                else if(newX <= origX && newX > 0)
                 {
                     if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
                     else if(newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX-1, newY));
@@ -240,237 +250,118 @@ public class PlayerNetwork: NetworkBehaviour
                 {
                     if (inbounds) PreProcessHighlight(new Vector2(newX, newY));   
                 }
-
-                //TODO: Handle the logic of returning to this line from above and below
             }
-            else if(newY > origY)
+            else if(newY > origY || (newY == origY && prevY > origY)) // TODO: REFACTOR THIS TO LOOK LIKE THE ONE AFTER
             {
                 int maxY = DocumentManager.Instance.GetLocalRowCount();
-                
-                if(newY > prevY && newY < maxY)//inbounds)
-                {
-                    for(int i = prevY; i <= newY; i++)
-                    {
-                        if (i == prevY)
-                        {
-                            for(int j = prevX; j < DocumentManager.Instance.GetLocalColumnCount(i); j++)
-                            {
-                                PreProcessHighlight(new Vector2(j, i));
-                            }
-                        }
-                        else
-                        {
-                            var maxX = DocumentManager.Instance.GetLocalColumnCount(i);
-                            if(newX < maxX)
-                            {
-                                for (int j = 0; j < newX; j++)
-                                {
-                                    PreProcessHighlight(new Vector2(j, i));
-                                }
-                            }
-                            else
-                            {
-                                for (int j = 0; j < maxX; j++)
-                                {
-                                    PreProcessHighlight(new Vector2(j, i));
-                                }
-                            }
 
-                        }
+                if(newY == maxY && prevY == maxY - 1)
+                {
+                    for(int i = prevX; i < DocumentManager.Instance.GetLocalColumnCount(prevY); i++)
+                    {
+                        PreProcessHighlight(new Vector2(i, prevY));
+                    }
+                }
+                else if (newY == prevY && inbounds)
+                {
+                    if (newX > prevX)
+                    {
+                        if (newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
+                        else if (newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                    }
+                    else if (newX <= prevX)
+                    {
+                        if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                        else if (newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
+                    }
+                    else
+                    {
+                        if (inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                    }
+                }
+                else if(newY > prevY && prevY < maxY)
+                {
+                    for(int i = prevX; i < DocumentManager.Instance.GetLocalColumnCount(prevY); i++)
+                    {
+                        PreProcessHighlight(new Vector2(i, prevY));
+                    }
+                    for(int i = 0; i < newX; i++)
+                    {
+                        PreProcessHighlight(new Vector2(i, newY));
                     }
                 }
                 else if(newY < prevY && newY < maxY)
                 {
-                    for(int i = prevY; i >= newY; i--)
+                    if(prevY < maxY)
                     {
-                        if(i == prevY)
+                        for(int i = prevX-1; i > -1; i--)
                         {
-                            var maxX = DocumentManager.Instance.GetLocalColumnCount(i);
-                            if(prevX < maxX)
-                            {
-                                for (int j = maxX-1; j>=0; j--)
-                                {
-                                    PreProcessHighlight(new Vector2(j, i));
-                                }
-                            }
-                            else
-                            {
-                                for (int j = prevX - 1; j >= 0; j--)
-                                {
-                                    PreProcessHighlight(new Vector2(j, i));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            for (int j = DocumentManager.Instance.GetLocalColumnCount(newY)+1; j >= newX; j--)
-                            {
-                                PreProcessHighlight(new Vector2(j, i));
-                            }
+                            PreProcessHighlight(new Vector2(i, prevY));
                         }
                     }
-                }
-                else if(newY == prevY)
-                {
-                    Debug.Log("You stayed in the same place");
+                    for(int i = DocumentManager.Instance.GetLocalColumnCount(newY)-1; i >= newX; i--)
+                    {
+                        PreProcessHighlight(new Vector2(i, newY));
+                    }
                 }
             }
-            else if(newY < origY)
+            else if(newY < origY || (newY == origY && prevY < origY))
             {
-                
-
+                if(newY == -1 && prevY == 0)
+                {
+                    // Handle only the first row
+                    for(int i = prevX-1; i > -1; i--)
+                    {
+                        PreProcessHighlight(new Vector2(i, prevY));
+                    }
+                }
+                else if (newY == prevY && inbounds)
+                {
+                    if (newX > prevX)
+                    {
+                        if (newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
+                        else if (newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                    }
+                    else if (newX <= prevX)
+                    {
+                        if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                        else if (newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
+                    }
+                    else
+                    {
+                        if (inbounds) PreProcessHighlight(new Vector2(newX, newY));
+                    }
+                }
+                else if(newY < prevY && prevY > 0)
+                {
+                    for (int i = prevX-1; i > -1; i--)
+                    {
+                        PreProcessHighlight(new Vector2(i, prevY));
+                    }
+                    for(int i = DocumentManager.Instance.GetLocalColumnCount(newY) - 1; i >= newX; i--)
+                    {
+                        PreProcessHighlight(new Vector2(i, newY));
+                    }
+                }
+                else if (newY > prevY && newY > -1)
+                {
+                    if(prevY > -1)
+                    {
+                        for (int i = prevX; i < DocumentManager.Instance.GetLocalColumnCount(prevY); i++)
+                        {
+                            PreProcessHighlight(new Vector2(i, prevY));
+                        }
+                    }
+                    for (int i = 0; i < newX; i++)
+                    {
+                        PreProcessHighlight(new Vector2(i, newY));
+                    }
+                } 
             }
-
-
 
             mousePreviousPosition = mousePosition;
             return;
         }
-
-
-        /* 
-         * Here's where the fun will happen... Let me type out my thoughts
-         * First thing.  Check to see if we moved.  If we did, did we move a column or a row?
-         * Are we still in the document?  Are we do the right or left of the document?
-         * How many in between?
-         * 
-         * I don't think we need to check movement.  Let's think it out.  The first click is always going
-         * to be constant and in place.  We shouldn't be adding the first click no matter what.  it should only be added
-         * when we highlight in one direction or another...
-         * 
-         * To the right and down it's included
-         * To the left and up it's excluded
-         * 
-        */ 
-
-
-
-        /*
-        if (targetLoc != mouseClickPosition)
-        {
-            // Let's get the original x and y
-            int origX, origY;
-            Utilities.GetListXY(mouseClickPosition, out origX, out origY);
-            int maxY = DocumentManager.Instance.GetLocalRowCount();
-
-            if (origY > maxY && newY > maxY)
-            {
-                origY= maxY;
-                newY = maxY;
-            }
-            if(origY < 0 && newY < 0)
-            {
-                origY = 0;
-                newY = 0;
-            }
-            if(origY != newY)
-            {
-                int[] yBounds = { origY, newY };
-                int[] xBounds = { origX, newX };
-                
-                if(origX < 0)
-                {
-                    origX = 0;
-                }
-                if(newX < 0)
-                {
-                    newX = 0;
-                }
-                // Is the new location below the old
-                if (origY < newY && origY < DocumentManager.Instance.GetLocalRowCount())
-                {
-                    for(int i = origX; i < DocumentManager.Instance.GetLocalColumnCount(yBounds[0]); i++)
-                    {
-                        PreProcessHighlight(new Vector2(i, origY));
-                    }
-                    int xLimit = DocumentManager.Instance.GetLocalColumnCount(yBounds[1]);
-                    if (newX <= origX)
-                    {
-                        for (int i = 0; i < origX; i++)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                        }
-                    }
-                    else if(newX > xLimit)
-                    {
-                        for (int i = 0; i < xLimit; i++)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                        }
-                    }
-                }
-                else if(origY > newY)
-                {
-                    for (int i = origX; i >= 0; i--)
-                    {
-                        PreProcessHighlight(new Vector2(i, origY));
-                    }
-                    int xLimit = DocumentManager.Instance.GetLocalColumnCount(yBounds[1])-1;
-
-                    if (newX >= 0)
-                    {
-                        for (int i = xLimit; i >= newX; i--)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                        }
-                    }
-                }
-            }
-            else
-            {
-                int xLimit = DocumentManager.Instance.GetLocalColumnCount(newY);
-                if (origX < newX && newX > -1)
-                {
-                    if(newX <= xLimit)
-                    {
-                        for(int i = origX-1; i<newX; i++)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                            //Debug.Log("(" + i + ", " + newY + ")");
-                        }
-                    }
-                    else
-                    {
-                        for(int i = origX; i<xLimit; i++)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                            //Debug.Log("(" + i + ", " + newY + ")");
-                        }
-                    }
-                }
-                else if( origX > newX && newX < xLimit )
-                {
-                    if(newX <= 0)
-                    {
-                        for (int i = origX; i > -1; i--)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                            //Debug.Log("(" + i + ", " + newY + ")");
-                        }
-                    }
-                    else
-                    {
-                        for (int i = origX; i > newX; i--)
-                        {
-                            PreProcessHighlight(new Vector2(i, newY));
-                            //Debug.Log("(" + i + ", " + newY + ")");
-                        }
-                    }
-                }
-            }
-
-            mouseClickPosition = targetLoc;
-            
-            Vector2 rayCasPos = new Vector2(targetLoc.x, targetLoc.y);
-            RaycastHit2D hit = Physics2D.Raycast(rayCasPos, Vector2.zero);
-            if(hit.collider != null)
-            {
-                var test = hit.transform.gameObject.GetComponent<NetworkObject>().NetworkObjectId;
-                //ProcessHighlightServerRpc(test);
-            }
-            
-        }*/
-        //ProcessMouseMoveServerRpc(targetLoc);
     }
     #endregion
 
