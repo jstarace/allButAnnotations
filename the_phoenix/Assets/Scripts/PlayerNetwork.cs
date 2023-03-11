@@ -174,23 +174,6 @@ public class PlayerNetwork: NetworkBehaviour
         */
     }
 
-    private void PreProcessHighlight(Vector2 loc)
-    {
-        if (!localSelection.TryGetValue(loc, out bool value))
-        {
-            value = true;
-            localSelection.Add(loc, value);
-        }
-        else
-        {
-            value = !localSelection[loc];
-            localSelection[loc] = value;
-        }
-
-        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);
-    }
-
-
     public void ProcessLeftClickHold(Vector3 mousePosition)
     {
         int newX, newY, origX, origY, prevX, prevY;
@@ -223,18 +206,18 @@ public class PlayerNetwork: NetworkBehaviour
              * 
              * 
              * So we're splitting the field into 3 areas
-             * 1. Above the origination line
+             * 1. Left to right in current line
              * 2. Below the origination line
              * 3. The origination line
              * 
-             * The code handles it in 2, 3, 1.
+             * The code handles it in 1, 2, 3.
             */
             if (newX < 0) newX = 0;
             if (prevX < 0) prevX = 0;
             if (newX >= DocumentManager.Instance.GetLocalColumnCount(newY)) newX = DocumentManager.Instance.GetLocalColumnCount(newY) - 1;
             if (prevX >= DocumentManager.Instance.GetLocalColumnCount(prevY)) prevX = DocumentManager.Instance.GetLocalColumnCount(prevY) - 1;
 
-            if (newY == origY && prevY == origY)  // This handles highlighting the same line
+            if ((newY == origY && prevY == origY) || (prevY == newY && inbounds))  // This handles highlighting the same line
             {
                 if(newX > origX)
                 {
@@ -251,7 +234,7 @@ public class PlayerNetwork: NetworkBehaviour
                     if (inbounds) PreProcessHighlight(new Vector2(newX, newY));   
                 }
             }
-            else if(newY > origY || (newY == origY && prevY > origY)) // TODO: REFACTOR THIS TO LOOK LIKE THE ONE AFTER
+            else if(newY > origY || (newY == origY && prevY > origY))
             {
                 int maxY = DocumentManager.Instance.GetLocalRowCount();
 
@@ -260,23 +243,6 @@ public class PlayerNetwork: NetworkBehaviour
                     for(int i = prevX; i < DocumentManager.Instance.GetLocalColumnCount(prevY); i++)
                     {
                         PreProcessHighlight(new Vector2(i, prevY));
-                    }
-                }
-                else if (newY == prevY && inbounds)
-                {
-                    if (newX > prevX)
-                    {
-                        if (newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
-                        else if (newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
-                    }
-                    else if (newX <= prevX)
-                    {
-                        if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
-                        else if (newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
-                    }
-                    else
-                    {
-                        if (inbounds) PreProcessHighlight(new Vector2(newX, newY));
                     }
                 }
                 else if(newY > prevY && prevY < maxY)
@@ -315,23 +281,6 @@ public class PlayerNetwork: NetworkBehaviour
                         PreProcessHighlight(new Vector2(i, prevY));
                     }
                 }
-                else if (newY == prevY && inbounds)
-                {
-                    if (newX > prevX)
-                    {
-                        if (newX > prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
-                        else if (newX <= prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
-                    }
-                    else if (newX <= prevX)
-                    {
-                        if (newX < prevX && inbounds) PreProcessHighlight(new Vector2(newX, newY));
-                        else if (newX >= prevX && inbounds) PreProcessHighlight(new Vector2(newX - 1, newY));
-                    }
-                    else
-                    {
-                        if (inbounds) PreProcessHighlight(new Vector2(newX, newY));
-                    }
-                }
                 else if(newY < prevY && prevY > 0)
                 {
                     for (int i = prevX-1; i > -1; i--)
@@ -365,7 +314,21 @@ public class PlayerNetwork: NetworkBehaviour
     }
     #endregion
 
+    private void PreProcessHighlight(Vector2 loc)
+    {
+        if (!localSelection.TryGetValue(loc, out bool value))
+        {
+            value = true;
+            localSelection.Add(loc, value);
+        }
+        else
+        {
+            value = !localSelection[loc];
+            localSelection[loc] = value;
+        }
 
+        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);
+    }
 
 
     #region Server RPCs
