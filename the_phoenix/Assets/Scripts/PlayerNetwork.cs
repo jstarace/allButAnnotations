@@ -119,8 +119,21 @@ public class PlayerNetwork: NetworkBehaviour
         #endregion
 
         if (!IsOwner) { return; }
+        if (textSelected)
+        {
+            foreach (var key in localSelection.Keys)
+            {
+                //Debug.Log(key);
+                //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+                if (localSelection.TryGetValue(key, out bool value))
+                {
+                    DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+                }
+            }
+            localSelection = new Dictionary<Vector2, bool>();
+            textSelected = false;
+        }
         ProcessInputServerRpc(newLoc, code, newChar);
-        DocumentManager.Instance.ResetHighlightsServerRpc();
     }
 
     #region Mouse actions
@@ -325,19 +338,6 @@ public class PlayerNetwork: NetworkBehaviour
             localSelection.Remove(loc);
             DocumentManager.Instance.ToggleHighlightServerRpc(loc, false);
         }
-
-/*        if (!localSelection.TryGetValue(loc, out bool value))
-        {
-            value = true;
-            localSelection.Add(loc, value);
-        }
-        else
-        {
-            value = !localSelection[loc];
-            localSelection[loc] = value;
-        }
-
-        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);*/
     }
 
 

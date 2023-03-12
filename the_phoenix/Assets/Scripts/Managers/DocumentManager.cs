@@ -538,16 +538,13 @@ public class DocumentManager : NetworkBehaviour
 
         if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-
             /* 
              * Here's where we'll build active selections.. we'll need to track the document
              * and which characters have an active selection and who the owner is
              * if they are the ONLY owner they can remove it, otherwise just remove their
              * id from the list but keep it selected.
              * So we'll need a bool to check prior to toggle
-            */
-
-            /*
+             *
              * there are four specific scenarios to cover
              * 1. Request to highlight
              *    a. Check to see if the text is already highlighted
@@ -557,13 +554,9 @@ public class DocumentManager : NetworkBehaviour
              *                toggle 
              * 
              * 2. Request to Remove highlight
-             * 
             */
 
-            
-
             Vector3 worldPos = new Vector3(loc.x, loc.y);
-            //Debug.Log("Here's the pos: (" + worldPos.x + ", " + worldPos.y +")");
             var netID = _charIds[(int)loc.y][(int)loc.x];
             var toggle = true;
 
@@ -577,7 +570,6 @@ public class DocumentManager : NetworkBehaviour
             {
                 if(playerSelections.ContainsKey(netID))
                 {
-                    Debug.Log("uh.....");
                     if (playerSelections[netID].Count == 0) playerSelections[netID].Add(clientID);
                     else
                     {
@@ -619,7 +611,6 @@ public class DocumentManager : NetworkBehaviour
                 bool state = tempChild.gameObject.activeSelf;
                 tempChild.gameObject.SetActive(!state);
                 ToggleHighlightClientRpc(netID, !state);
-
             }
         }
     }
