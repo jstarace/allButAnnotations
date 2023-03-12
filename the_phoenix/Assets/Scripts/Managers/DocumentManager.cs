@@ -8,6 +8,7 @@ using TMPro;
 using System;
 using System.IO;
 using Mono.Cecil.Cil;
+using System.Net.Security;
 
 #region file description
 /********************************************************************************************
@@ -55,6 +56,8 @@ public class DocumentManager : NetworkBehaviour
     private List<List<char>> clientDocument;
     private bool configured = false;
 
+    private Dictionary<ulong, List<ulong>> playerSelections;
+
     #region Initializations and startups
     private void Awake()
     {
@@ -87,7 +90,9 @@ public class DocumentManager : NetworkBehaviour
 
         if (enabled)
         {
-            if(Instance != null && Instance != this)
+            Debug.Log("we get here?");
+            playerSelections = new Dictionary<ulong, List<ulong>>();
+            if (Instance != null && Instance != this)
             {
                 Destroy(this);
             }
@@ -289,6 +294,18 @@ public class DocumentManager : NetworkBehaviour
 
         #region This region handles upkeep, inserting ID into the list and shifting values
         var id = m_SpawnedNetworkObject.NetworkObjectId;
+
+        /*
+         * Once we have an object id we want to add it into the dictionary as a key with a new list
+         * then we can handle everything from the insert functions
+        */
+
+        //Debug.Log("This should fire");
+        if (!playerSelections.ContainsKey(id))
+        {
+            playerSelections.Add(id, new List<ulong>());
+        }
+
         if (code == 1)
         {
             _charIds[listPosY].Add(id);
@@ -302,6 +319,7 @@ public class DocumentManager : NetworkBehaviour
             AddMeshClientRpc(m_PrefabInstance);
             //Insert the new network object id into the list
             _charIds[listPosY].Insert(listPosX, id);
+            //if (!playerSelections.ContainsKey(id)) playerSelections.Add(id, new List<ulong>());
         }
         #endregion
     }
@@ -492,7 +510,7 @@ public class DocumentManager : NetworkBehaviour
     #region Document Reset
     public void ClearDocument()
     {
-        Debug.Log("We clear");
+        //Debug.Log("We clear");
 
         for (int i = 0; i < _charIds.Count; i++)
         {
@@ -520,15 +538,89 @@ public class DocumentManager : NetworkBehaviour
 
         if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-            Vector3 worldPos = new Vector3(loc.x, loc.y);
-            Debug.Log("Here's the pos: (" + worldPos.x + ", " + worldPos.y +")");
-            var netID = _charIds[(int)loc.y][(int)loc.x];
-            var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
-            var tempChild = tempObject.transform.GetChild(0);
-            bool state = tempChild.gameObject.activeSelf;
-            tempChild.gameObject.SetActive(!state);
-            ToggleHighlightClientRpc(netID, !state);
 
+            /* 
+             * Here's where we'll build active selections.. we'll need to track the document
+             * and which characters have an active selection and who the owner is
+             * if they are the ONLY owner they can remove it, otherwise just remove their
+             * id from the list but keep it selected.
+             * So we'll need a bool to check prior to toggle
+            */
+
+            /*
+             * there are four specific scenarios to cover
+             * 1. Request to highlight
+             *    a. Check to see if the text is already highlighted
+             *       if yes - Register them as having it highlighted
+             *                Don't toggle
+             *       if no  - Register them as having it highlighted
+             *                toggle 
+             * 
+             * 2. Request to Remove highlight
+             * 
+            */
+
+            
+
+            Vector3 worldPos = new Vector3(loc.x, loc.y);
+            //Debug.Log("Here's the pos: (" + worldPos.x + ", " + worldPos.y +")");
+            var netID = _charIds[(int)loc.y][(int)loc.x];
+            var toggle = true;
+
+            if (!value)
+            {
+                playerSelections.TryGetValue(netID, out var removeList);
+                removeList.Remove(clientID);
+                if (removeList.Count > 0) toggle = false;
+            }
+            else if (value)
+            {
+                if(playerSelections.ContainsKey(netID))
+                {
+                    Debug.Log("uh.....");
+                    if (playerSelections[netID].Count == 0) playerSelections[netID].Add(clientID);
+                    else
+                    {
+                        foreach (var item in playerSelections[netID])
+                        {
+                            if (item == clientID) Debug.Log("Should not happen");
+                            else playerSelections[netID].Add(clientID);
+                        }
+                    }
+
+                    if (playerSelections[netID].Count > 1) toggle = false;
+                    Debug.Log(playerSelections[netID].Count);
+                }
+            }
+            if (playerSelections.TryGetValue(netID, out var theList))
+            {
+                //Debug.Log("ok, this is happening");
+                /*
+                 * Ok, we have the dictionary created with the netID of the text.  Now we need to look up
+                 * if the player requesting is added to the contained list, if not add them,
+                 * if they are... do nothing?
+                */
+                
+                //if (value) theList.Add(clientID);
+                //if (!value) theList.Remove(clientID);
+
+                //Debug.Log("The network ID is: " + netID + "\nThe value is: " + value);
+
+
+
+                //else if (!value) theList.Remove(clientID);
+                //if (theList.Count > 0) toggle = false;
+            }
+
+            if(toggle)
+            {
+                var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+                var tempChild = tempObject.transform.GetChild(0);
+                bool state = tempChild.gameObject.activeSelf;
+                tempChild.gameObject.SetActive(!state);
+                ToggleHighlightClientRpc(netID, !state);
+
+            }
         }
     }
 

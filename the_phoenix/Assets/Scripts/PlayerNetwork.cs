@@ -63,7 +63,6 @@ public class PlayerNetwork: NetworkBehaviour
             {
                 CinemachineVirtualDynamic.Instance.FollowPlayer(transform);
                 localSelection = new Dictionary<Vector2, bool>();
-                //this.documentChars = new List<List<char>> { new List<char>() };
             }
             textSelected = false;
             mouseClickPosition = default(Vector3);
@@ -91,7 +90,6 @@ public class PlayerNetwork: NetworkBehaviour
         {
             ChatController.Instance.JoinedChatServerRpc(playerName.Value.ToString());
             welcome = true;
-            //DocumentManager.Instance.CheckDoc();
         }
 
         if (Input.GetKeyDown(KeyCode.T))
@@ -130,7 +128,8 @@ public class PlayerNetwork: NetworkBehaviour
     public void ProcessSingleLeftClick(Vector3 clickLocation)
     {
         if (!IsOwner) return;
-        DocumentManager.Instance.ResetHighlightsServerRpc();
+        //if(!IsLocalPlayer) return;
+        //DocumentManager.Instance.ResetHighlightsServerRpc();
 
         int x, y;
         Vector3 targetLoc;
@@ -138,40 +137,29 @@ public class PlayerNetwork: NetworkBehaviour
         Utilities.GetWorldXY(x, y, out targetLoc);
         mouseClickPosition = targetLoc;
         mousePreviousPosition= targetLoc;
-
-        if (DocumentManager.Instance.LocalInBounds(clickLocation))
-        {
-            Debug.Log("Inbounds");
-        }
-        else
-        {
-            Debug.Log("Missed it by that much");
-        }
         
-
-        // Here we check if there's already a selection, if yes, clear it, if not... we cool
         if(textSelected)
         {
-            // Clear the highlights
-            DocumentManager.Instance.ResetHighlightsServerRpc();
-
-            // Reset the dictionary
+            /*
+             * Iterate through the dictionary.  For any keys with value 'True'
+             * We tell the server to remove the user from the list
+             * Then we delete the replace the dictionary with a new one
+             * and set the selected flag to false
+            */
+            foreach(var key in localSelection.Keys)
+            {
+                //Debug.Log(key);
+                //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+                if(localSelection.TryGetValue(key, out bool value))
+                {
+                    DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+                }
+            }
             localSelection = new Dictionary<Vector2, bool>();
-            // Reset the flag
             textSelected = false;
         }
-        // move the user
+        textSelected = true;
         ProcessMouseMoveServerRpc(mouseClickPosition);
-
-        //Check if click is in the document
-
-/*        if (DocumentManager.Instance.LocalInBounds(mouseClickPosition))
-        {
-            textSelected = true;
-            localSelection.Add(new Vector2(x, y), true);
-            Debug.Log("Added (" + x+ ", " + y + ")");
-        }
-        */
     }
 
     public void ProcessLeftClickHold(Vector3 mousePosition)
@@ -183,6 +171,8 @@ public class PlayerNetwork: NetworkBehaviour
         Utilities.GetListXY(mousePosition, out newX, out newY);
         Utilities.GetWorldXY(newX, newY, out targetLoc);
 
+        if (!IsLocalPlayer) return;
+
         /* 
          * We have to take into consideration that this will be a constant stream of data
          * So, if the player is just clicking and holding, we don't want to continuing
@@ -190,7 +180,14 @@ public class PlayerNetwork: NetworkBehaviour
          *         
         */
 
+        var newBounds = DocumentManager.Instance.LocalInBounds(targetLoc);
+        var preBounds = DocumentManager.Instance.LocalInBounds(mouseClickPosition);
         var inbounds = DocumentManager.Instance.LocalInBounds(mousePosition);
+        if (!newBounds && !preBounds & !inbounds)
+        {
+            ProcessMouseMoveServerRpc(targetLoc);
+            return;
+        }
         if (prevX == newX && prevY == newY)
         {
             return;
@@ -309,6 +306,7 @@ public class PlayerNetwork: NetworkBehaviour
             }
 
             mousePreviousPosition = mousePosition;
+            
             return;
         }
     }
@@ -316,7 +314,19 @@ public class PlayerNetwork: NetworkBehaviour
 
     private void PreProcessHighlight(Vector2 loc)
     {
-        if (!localSelection.TryGetValue(loc, out bool value))
+
+        if (!localSelection.ContainsKey(loc))
+        {
+            localSelection.Add(loc, true);
+            DocumentManager.Instance.ToggleHighlightServerRpc(loc, true);
+        }
+        else
+        {
+            localSelection.Remove(loc);
+            DocumentManager.Instance.ToggleHighlightServerRpc(loc, false);
+        }
+
+/*        if (!localSelection.TryGetValue(loc, out bool value))
         {
             value = true;
             localSelection.Add(loc, value);
@@ -327,7 +337,7 @@ public class PlayerNetwork: NetworkBehaviour
             localSelection[loc] = value;
         }
 
-        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);
+        DocumentManager.Instance.ToggleHighlightServerRpc(loc, localSelection[loc]);*/
     }
 
 
