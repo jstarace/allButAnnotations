@@ -41,7 +41,7 @@ public class PlayerController : NetworkBehaviour
 
             // First we have to make sure that the player is in the document and nowhere else
             if (ChatController.Instance.chatInput.isFocused || DocumentManager.Instance.fileName.isFocused) return;
-
+            if (AnnotationsManager.Instance.annotationInput.isFocused) return;
             // Then we check if they press an arrow key because we allow this key to be held down
             if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.RightArrow)) arrow = true;
             else arrow = false;

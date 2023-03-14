@@ -262,7 +262,6 @@ public class DocumentManager : NetworkBehaviour
                 charCount++;
             }
         }
-        Debug.Log("The count is: " + charCount);
     }
 
     #region Main functions to handle the document
@@ -528,6 +527,23 @@ public class DocumentManager : NetworkBehaviour
     #endregion
 
     #endregion
+
+    public List<ulong> GetSelection(ulong clientID)
+    {
+        var tempList = new List<ulong>();
+        
+        foreach(var item in playerSelections)
+        {
+            var test = item.Value;
+            
+            foreach(var val in test)
+            {
+                if (val == clientID ) tempList.Add(item.Key);
+            }
+        }
+
+        return tempList;
+    }
 
     #region ServerRpcs
 

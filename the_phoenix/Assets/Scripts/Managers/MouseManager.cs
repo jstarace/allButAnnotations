@@ -53,7 +53,7 @@ public class MouseManager : NetworkBehaviour
     {
         // First we have to make sure that the player is in the document and nowhere else
         if (ChatController.Instance.chatInput.isFocused || DocumentManager.Instance.fileName.isFocused) return;
-
+        if (AnnotationsManager.Instance.annotationPanel.active) return;
         // Left click, just the down part, we'll handle the continuous part later
         if (Input.GetMouseButtonDown(0))
         {

@@ -136,6 +136,14 @@ public class PlayerNetwork: NetworkBehaviour
         ProcessInputServerRpc(newLoc, code, newChar);
     }
 
+    public bool IsSelected()
+    {
+        bool isNull = true;
+
+        if(localSelection.Count < 1 || localSelection == null) isNull= false;
+        return isNull;
+    }
+
     #region Mouse actions
 
     public void ProcessSingleLeftClick(Vector3 clickLocation)
@@ -356,13 +364,6 @@ public class PlayerNetwork: NetworkBehaviour
     {
         transform.localScale = scale;
         SetScalesClientRpc(scale);
-    }
-
-    [ServerRpc]
-    private void ProcessHighlightServerRpc(ulong netID, ServerRpcParams serverRpcParams = default)
-    {
-        var clientID = serverRpcParams.Receive.SenderClientId;
-        AnnotationsManager.Instance.ToggleHighlight(netID, clientID);
     }
 
     [ServerRpc]
