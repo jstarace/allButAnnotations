@@ -58,9 +58,11 @@ public class FileManager : NetworkBehaviour
             this._paths.Add(Application.streamingAssetsPath + "/Logs/ChatTranscript/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/ChatPayloads/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/DocumentPayload/");
+            this._paths.Add(Application.streamingAssetsPath + "/Logs/AnnotationsPayload/");
             this._fileNames.Add("ChatTranscripts_" + currentDate);
             this._fileNames.Add("ChatPayload_" + currentDate);
             this._fileNames.Add("DocumentPayload_" + currentDate);
+            this._fileNames.Add("AnnotationsPayload_" + currentDate);
 
             //Debug.Log("Here's on Spawn");
             for (int i = 0; i < this._paths.Count; i++)
@@ -138,6 +140,7 @@ public class FileManager : NetworkBehaviour
                 _fileNames[0] = "ChatTranscripts_" + currentDate;
                 _fileNames[1] = "ChatPayload_" + currentDate;
                 _fileNames[2] = "DocumentPayload_" + currentDate;
+                _fileNames[3] = "AnnotationsPayload_" + currentDate;
             }
 
             //We need to build the name based on the code.... maybe, this is getting tough          
@@ -176,12 +179,15 @@ public class FileManager : NetworkBehaviour
             chatEntries.Add(new ChatEntry(message._userId.st, message._userName.st, message._date.st, message._time.st, message._message.st));
             FileHandler.SaveToJSON(chatEntries, _paths[code + 1] + _fileNames[code + 1] + _extensions[4]);
         }
-        if(code == 1)
+        else if(code == 1)
         {
             documentEntries.Add(entry);
             FileHandler.SaveToJSON(documentEntries, _paths[code + 1] + _fileNames[code + 1] + _extensions[4]);
         }
-        
+        else if(code == 2)
+        {
+            Debug.Log("this will be where we send the shit... need to build it though");
+        }
     }
 
     #endregion
