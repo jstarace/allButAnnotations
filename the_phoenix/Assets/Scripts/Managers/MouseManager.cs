@@ -60,7 +60,6 @@ public class MouseManager : NetworkBehaviour
             // We need to know which player we're talking about.  So get the player
             var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
             var player = playerObject.GetComponent<PlayerNetwork>();
-            Debug.Log("Single click");
 
             // Cast a ray from the mouse click into the world
             Vector2 rayCasPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);

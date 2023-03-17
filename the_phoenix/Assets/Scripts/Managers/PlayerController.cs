@@ -27,17 +27,16 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-
-        // Let's handle moving with just arrows first.  We want the user to be able to navigate the world, but only type in
-        // the document for now.  In order to do this I capture move arrows first and process those.  So this will be 
-        // Something like.... any key and keycode
-
+        /*
+         * Let's handle moving with just arrows first.  We want the user to be able to navigate the world, but only type in
+         * the document for now.  In order to do this I capture move arrows first and process those.  So this will be 
+         * Something like.... any key and keycode
+        */
 
         if (Input.anyKey)
         {
             var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
             var player = playerObject.GetComponent<PlayerNetwork>();
-            //Vector2Int moveDir = new Vector2Int(0, 0);
 
             // First we have to make sure that the player is in the document and nowhere else
             if (ChatController.Instance.chatInput.isFocused || DocumentManager.Instance.fileName.isFocused) return;
@@ -81,11 +80,6 @@ public class PlayerController : NetworkBehaviour
                     t = 0;
                 }
             }
-
-            // Here I'll do mouse
-
-
-            // Otherwise, they typing... paste that mofo here.
 
             if (!arrow && !mouse && !NetworkUI.Instance.displayMessage)
             {

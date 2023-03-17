@@ -25,6 +25,13 @@ public class AnnotationsManager : NetworkBehaviour
     public GameObject annotationWindow = null;
 
 
+    public GameObject PrefabToSpawn;
+    private GameObject m_PrefabInstance;
+    private NetworkObject m_SpawnedNetworkObject;
+    private SpriteRenderer backgroundSpriteRenderer;
+    private TextMeshPro annotationText;
+    private TextMeshPro selectedText;
+
 
     private void Awake()
     {
@@ -47,7 +54,7 @@ public class AnnotationsManager : NetworkBehaviour
         });
         submitAnnotation.onClick.AddListener(() =>
         {
-            Debug.Log("Clicked submit");
+            // Debug.Log("Clicked submit");
             var theAnnotation = annotationInput.text;
             CreateAnnotationPackage(theAnnotation);            
             ResetWindow();
@@ -63,7 +70,12 @@ public class AnnotationsManager : NetworkBehaviour
 
     private void CreateAnnotationPackage(string theAnnotation)
     {
+        var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
+        var player = playerObject.GetComponent<PlayerNetwork>();
+
+        player.ClearSelection();
         ReceiveAnnotationServerRpc(theAnnotation);
+
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -73,14 +85,46 @@ public class AnnotationsManager : NetworkBehaviour
         var clientID = serverRpcParams.Receive.SenderClientId;
         if(NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-            Debug.Log(theAnnotation);
+            //Debug.Log(theAnnotation);
             var newAnno = DocumentManager.Instance.GetSelection(clientID);
+            string selection = string.Empty;
             foreach (var anno in newAnno)
             {
-                Debug.Log(anno);
+                selection += DocumentManager.Instance.GetCharacterById(anno);
             }
+
+            var player = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientID);
+            m_PrefabInstance = Instantiate(PrefabToSpawn);
+
+            m_PrefabInstance.transform.position = new Vector3(-125, player.transform.position.y);
+
+
+            m_SpawnedNetworkObject = m_PrefabInstance.GetComponent<NetworkObject>();
+            backgroundSpriteRenderer = m_SpawnedNetworkObject.transform.Find("Background").GetComponent<SpriteRenderer>();
+            selectedText = m_SpawnedNetworkObject.transform.Find("SelectedText").GetComponent<TextMeshPro>();
+            annotationText = m_SpawnedNetworkObject.transform.Find("AnnoText").GetComponent<TextMeshPro>();
+            selectedText.text = selection;
+            annotationText.text = theAnnotation;
+            m_SpawnedNetworkObject.Spawn();
+
+            
+
+            UpdateThatPieceClientRpc(m_SpawnedNetworkObject, selection, theAnnotation);
+            
         }
-        
+                
+    }
+
+    [ClientRpc]
+
+    private void UpdateThatPieceClientRpc(NetworkObjectReference newAnno, string selection, string theAnnotation)
+    {
+        var temp = ((GameObject)newAnno);
+        var newSelectedText = temp.transform.Find("SelectedText").GetComponent<TextMeshPro>();
+        var newAnnotationText = temp.transform.Find("AnnoText").GetComponent<TextMeshPro>();
+        newSelectedText.text = selection;
+        newAnnotationText.text = theAnnotation;
+
     }
 
     public override void OnNetworkSpawn()
@@ -97,7 +141,6 @@ public class AnnotationsManager : NetworkBehaviour
             if (Input.GetMouseButtonDown(1))
             {
                 annotationPanel.SetActive(true);
-                //Debug.Log(GetSelection());
                 createAnnotation.interactable = GetSelection();
             }
         }       
@@ -121,6 +164,7 @@ public class AnnotationsManager : NetworkBehaviour
         var tempChild = tempObject.transform.GetChild(0);
         //bool state = tempChild.gameObject.activeSelf;
         tempChild.gameObject.SetActive(state);
+
     }
 
     private void ResetWindow()

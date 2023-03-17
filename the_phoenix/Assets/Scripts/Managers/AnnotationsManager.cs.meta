@@ -3,7 +3,16 @@ guid: ad037924162d0ca49975f368b7ddfca8
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - annotationInput: {instanceID: 0}
+  - createAnnotation: {instanceID: 0}
+  - cancelAnnoMenu: {instanceID: 0}
+  - submitAnnotation: {instanceID: 0}
+  - quitAnnotation: {instanceID: 0}
+  - annotationPanel: {instanceID: 0}
+  - rightClickMenu: {instanceID: 0}
+  - annotationWindow: {instanceID: 0}
+  - PrefabToSpawn: {fileID: 2765370218872935315, guid: dc3de0fc182b20149a635fa053a34130, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

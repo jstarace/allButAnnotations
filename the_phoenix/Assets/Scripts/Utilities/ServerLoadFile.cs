@@ -24,24 +24,31 @@ public static class ServerLoadFile
             {
                 case 5:
                     DocumentManager.Instance.InsertRow(entry.currentPos);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code);
                     break;
                 case 6:
                     DocumentManager.Instance.InsertRow(entry.currentPos);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code);
                     break;
                 case 7:
                     DocumentManager.Instance.Delete(entry.currentPos, true, out y, out x);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code);
                     break;
                 case 8:
                     DocumentManager.Instance.Delete(entry.currentPos, false, out x, out y);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code);
                     break;
                 case 9:
                     DocumentManager.Instance.InsertCharacter(entry.currentPos, entry.inputKey);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code, entry.inputKey);
                     break;
                 case 10:
                     DocumentManager.Instance.InsertCharacter(entry.currentPos, entry.inputKey);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code, entry.inputKey);
                     break;
                 case 42:
                     DocumentManager.Instance.InsertCharacter(entry.currentPos, entry.inputKey);
+                    DocumentManager.Instance.UpdateDocumentListClientRpc(entry.currentPos, code, entry.inputKey);
                     break;
                 default:
                     break;

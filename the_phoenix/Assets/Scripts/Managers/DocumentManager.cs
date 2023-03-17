@@ -7,8 +7,8 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 using System.IO;
-using Mono.Cecil.Cil;
-using System.Net.Security;
+// using Mono.Cecil.Cil;
+// using System.Net.Security;
 
 #region file description
 /********************************************************************************************
@@ -299,11 +299,7 @@ public class DocumentManager : NetworkBehaviour
          * then we can handle everything from the insert functions
         */
 
-        //Debug.Log("This should fire");
-        if (!playerSelections.ContainsKey(id))
-        {
-            playerSelections.Add(id, new List<ulong>());
-        }
+        UpdateSelectionDictionary(id, true);
 
         if (code == 1)
         {
@@ -321,6 +317,18 @@ public class DocumentManager : NetworkBehaviour
             //if (!playerSelections.ContainsKey(id)) playerSelections.Add(id, new List<ulong>());
         }
         #endregion
+    }
+
+    private void UpdateSelectionDictionary(ulong id, bool add)
+    {
+        if (add && !playerSelections.ContainsKey(id))
+        {
+            playerSelections.Add(id, new List<ulong>());
+        }
+        else if(!add && playerSelections.ContainsKey(id))
+        {
+            playerSelections.Remove(id);
+        }
     }
 
     public void InsertRow(Vector3 playerPos)
@@ -349,6 +357,7 @@ public class DocumentManager : NetworkBehaviour
         m_SpawnedNetworkObject.Spawn();
 
         var id = m_SpawnedNetworkObject.NetworkObjectId;
+        UpdateSelectionDictionary(id, true);
 
         if (listPosY == eod)
         {
@@ -414,6 +423,8 @@ public class DocumentManager : NetworkBehaviour
                 int lastCharPos = GetColumnCount(prevRow) - 1;
 
                 NetworkObject tempNO = NetworkManager.SpawnManager.SpawnedObjects[_charIds[prevRow][lastCharPos]].GetComponent<NetworkObject>();
+                var id = tempNO.NetworkObjectId;
+                UpdateSelectionDictionary(id, false);
                 _charIds[prevRow].RemoveAt(lastCharPos);
                 tempNO.Despawn();
                 _charIds[prevRow] = JoinTwoLists(_charIds[prevRow], _charIds[listPosY]);
@@ -429,6 +440,8 @@ public class DocumentManager : NetworkBehaviour
             {
                 // Handle deleting a character within the line
                 NetworkObject tempNO = NetworkManager.SpawnManager.SpawnedObjects[_charIds[listPosY][listPosX - 1]].GetComponent<NetworkObject>();
+                var id = tempNO.NetworkObjectId;
+                UpdateSelectionDictionary(id, false);
                 _charIds[listPosY].RemoveAt(listPosX - 1);
                 tempNO.Despawn();
                 refreshRowPositions(listPosY);
@@ -444,6 +457,8 @@ public class DocumentManager : NetworkBehaviour
                 _charIds[listPosY] = JoinTwoLists(_charIds[listPosY], _charIds[nextRow]);
                 _charIds.RemoveAt(nextRow);
                 NetworkObject tempNO = NetworkManager.SpawnManager.SpawnedObjects[_charIds[listPosY][listPosX]].GetComponent<NetworkObject>();
+                var id = tempNO.NetworkObjectId;
+                UpdateSelectionDictionary(id, false);
                 _charIds[listPosY].RemoveAt(listPosX);
                 tempNO.Despawn();
                 for (int i = 0; i < GetRowCount(); i++)
@@ -454,6 +469,8 @@ public class DocumentManager : NetworkBehaviour
             else
             {
                 NetworkObject tempNO = NetworkManager.SpawnManager.SpawnedObjects[_charIds[listPosY][listPosX]].GetComponent<NetworkObject>();
+                var id = tempNO.NetworkObjectId;
+                UpdateSelectionDictionary(id, false);
                 _charIds[listPosY].RemoveAt(listPosX);
                 tempNO.Despawn();
                 refreshRowPositions(listPosY);
@@ -522,11 +539,24 @@ public class DocumentManager : NetworkBehaviour
         }
         _charIds = new List<List<ulong>> { new List<ulong>() };
         fileContainer = new List<string>();
+        playerSelections.Clear();
+        ClearClientSelectionsClientRpc();
+
         InsertCharacter(new Vector3(-100, 50, 0), "\n", 1);
+
     }
     #endregion
 
     #endregion
+
+    [ClientRpc]
+    private void ClearClientSelectionsClientRpc()
+    {
+        clientDocument = new List<List<char>>
+        {
+            new List<char>()
+        };
+    }
 
     public List<ulong> GetSelection(ulong clientID)
     {
@@ -544,6 +574,14 @@ public class DocumentManager : NetworkBehaviour
 
         return tempList;
     }
+
+    public char GetCharacterById(ulong netID)
+    {
+        var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
+        char tempChar = tempObject.GetComponent<TextMesh>().text[0];
+        return tempChar;
+    }
+
 
     #region ServerRpcs
 
@@ -597,29 +635,9 @@ public class DocumentManager : NetworkBehaviour
                     }
 
                     if (playerSelections[netID].Count > 1) toggle = false;
-                    Debug.Log(playerSelections[netID].Count);
+                    
                 }
             }
-            if (playerSelections.TryGetValue(netID, out var theList))
-            {
-                //Debug.Log("ok, this is happening");
-                /*
-                 * Ok, we have the dictionary created with the netID of the text.  Now we need to look up
-                 * if the player requesting is added to the contained list, if not add them,
-                 * if they are... do nothing?
-                */
-                
-                //if (value) theList.Add(clientID);
-                //if (!value) theList.Remove(clientID);
-
-                //Debug.Log("The network ID is: " + netID + "\nThe value is: " + value);
-
-
-
-                //else if (!value) theList.Remove(clientID);
-                //if (theList.Count > 0) toggle = false;
-            }
-
             if(toggle)
             {
                 var tempObject = NetworkManager.SpawnManager.SpawnedObjects[netID].gameObject;
@@ -719,14 +737,16 @@ public class DocumentManager : NetworkBehaviour
         tempMesh.GetComponent<TextMesh>().text = text;
     }
 
+
+    #endregion
+
+    #region Helper functions... maybe one day we move em to utilities
+
     public void SetConfirmationText(string message)
     {
         Debug.Log(message);
         confMessage.text = message;
     }
-    #endregion
-
-    #region Helper functions... maybe one day we move em to utilities
 
     private void refreshRowPositions(int row)
     {
@@ -914,7 +934,7 @@ public class DocumentManager : NetworkBehaviour
             int index_2 = _charIds[i].Count;
             for(int j = 0; j<index_2; j++)
             {
-                // Debug.Log("Here's the thing? " + _charIds[i][j]);
+                Debug.Log("Here's the thing? " + _charIds[i][j]);
             }
         }
         
@@ -923,15 +943,15 @@ public class DocumentManager : NetworkBehaviour
     {
         for (int i = 0; i < file.Count; i++)
         {
-            // Debug.Log(file[i].ToString());
+            Debug.Log(file[i].ToString());
         }
     }
     public void PrintListOverview()
     {
-        // Debug.Log("The list currently has " + GetRowCount() +" row(s)");
+        Debug.Log("The list currently has " + GetRowCount() +" row(s)");
         for(int i=0; i<GetRowCount(); i++)
         {
-            // Debug.Log("Row " + i + " has " + GetColumnCount(i) + " columns");
+            Debug.Log("Row " + i + " has " + GetColumnCount(i) + " columns");
         }
     }
 
@@ -952,7 +972,5 @@ public class DocumentManager : NetworkBehaviour
     }
 
     #endregion
-
-
 
 }

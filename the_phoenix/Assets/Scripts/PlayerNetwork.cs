@@ -121,7 +121,9 @@ public class PlayerNetwork: NetworkBehaviour
         if (!IsOwner) { return; }
         if (textSelected)
         {
-            foreach (var key in localSelection.Keys)
+            ClearSelection();
+
+/*            foreach (var key in localSelection.Keys)
             {
                 //Debug.Log(key);
                 //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
@@ -131,9 +133,24 @@ public class PlayerNetwork: NetworkBehaviour
                 }
             }
             localSelection = new Dictionary<Vector2, bool>();
-            textSelected = false;
+            textSelected = false;*/
         }
         ProcessInputServerRpc(newLoc, code, newChar);
+    }
+
+    public void ClearSelection()
+    {
+        foreach (var key in localSelection.Keys)
+        {
+            //Debug.Log(key);
+            //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+            if (localSelection.TryGetValue(key, out bool value))
+            {
+                DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
+            }
+        }
+        localSelection = new Dictionary<Vector2, bool>();
+        textSelected = false;
     }
 
     public bool IsSelected()
