@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -15,11 +16,11 @@ public class ChatController : NetworkBehaviour
     public static ChatController Instance { set; get; }
     private static ChatMessage chatMessage;
     private static List<ChatMessage> chatMessages = new List<ChatMessage>();
-    private int code;
-
-
+    private static LogEntry logEntry;
+    //private int code;
     private bool firstMessage;
-    private string message;
+    //private string message;
+    
     private void Awake()
     {
         Instance = this;
@@ -36,13 +37,7 @@ public class ChatController : NetworkBehaviour
     {
         if (NetworkManager.Singleton.IsServer)
         {
-/*            chatMessage._userId = new NetworkString() { st = OwnerClientId.ToString() };
-            chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
-            chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
-            chatMessage._userName = new NetworkString() { st = "The Almighty Server" };
-            chatMessage._message = new NetworkString() { st = "I was initialized" };*/
-
-            var tempMessage = BuildServerMessage(OwnerClientId.ToString(), "Server User", "I was Initialized");
+            var tempMessage = BuildServerMessage(OwnerClientId.ToString(), "Server", "I was Initialized");
             chatMessages.Add(tempMessage);
         }
         if (!NetworkManager.Singleton.IsServer && IsClient)
@@ -53,13 +48,15 @@ public class ChatController : NetworkBehaviour
 
     private void Update()
     {
-        // If the server is restarted during the day, we want to preserve any previous logs
-        // So on the server start, we run this check.  This will test out processing a request
-        // Which will create a save any previous file and create a new one for current session
+        /* 
+         * If the server is restarted during the day, we want to preserve any previous logs
+         * So on the server start, we run this check.  This will test out processing a request
+         * Which will create a save any previous file and create a new one for current session
+        */
         if (NetworkManager.Singleton.IsServer && !firstMessage)
         {
-            code = 0;
-            FileManager.Instance.ProcessRequest(code, chatMessage);
+            logEntry = CreateEntry(OwnerClientId, "Server", "Admin", "Initialization Message", "I was Initialized");
+            FileManager.Instance.ProcessRequests(logEntry);
             firstMessage = true;
         }
     }
@@ -71,30 +68,11 @@ public class ChatController : NetworkBehaviour
 
     public void ClearChatMessages()
     {
-        //chatMessages = new List<ChatMessage>();
         chatMessages.Clear();
         ClearChatLogsClientRpc();
         var tempMessage = BuildServerMessage(OwnerClientId.ToString(), "Server User", "Professor Reset the chat");
-/*        chatMessage._userId = new NetworkString() { st = OwnerClientId.ToString() };
-        chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
-        chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
-        chatMessage._userName = new NetworkString() { st = "The Almighty Server" };
-        chatMessage._message = new NetworkString() { st = "Professor Reset the chat" };*/
         chatMessages.Add(tempMessage);
         AllLoadChatClientRpc(tempMessage);
-    }
-
-    [ClientRpc]
-
-    private void ClearChatLogsClientRpc()
-    {
-        chatWindow.text = string.Empty;
-    }
-
-    [ClientRpc]
-    private void AllLoadChatClientRpc(ChatMessage theThing)
-    {
-        chatWindow.text += BuildMessageString(theThing);
     }
 
     #region ServerRpcs
@@ -105,19 +83,13 @@ public class ChatController : NetworkBehaviour
         var clientID = serverRpcParams.Receive.SenderClientId;
         if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-            //var tempUser = NetworkManager.Singleton.ConnectedClients[clientID].PlayerObject;
             var tempMessage = BuildServerMessage("0", "Server User", string.Format("Welcome {0} to the lecture.", name));
-/*            chatMessage._userId = new NetworkString() { st = "0" };
-            chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
-            chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
-            chatMessage._userName = new NetworkString() { st = "The Almighty Server" };
-            chatMessage._message = new NetworkString() { st = string.Format("Everyone please welcome {0} to the lesson.", name) };*/
             chatMessages.Add(tempMessage);
             LoadMessageClientRpc(tempMessage);
-            FileManager.Instance.ProcessRequest(0, tempMessage);
+            logEntry = CreateEntry(0, "Server", "admin", "Welcome User", string.Format("Welcome {0} to the lecture.", name));
+            FileManager.Instance.ProcessRequests(logEntry);
         }
     }
-
 
     [ServerRpc(RequireOwnership = false)]
     public void ReceiveChatMessageServerRpc(string newMessage, ServerRpcParams serverRpcParams = default)
@@ -127,26 +99,11 @@ public class ChatController : NetworkBehaviour
         {
             var tempUser = NetworkManager.Singleton.ConnectedClients[clientID].PlayerObject;
             var tempMessage = BuildServerMessage(clientID.ToString(), tempUser.name, newMessage);
-/*            chatMessage._userId = new NetworkString() { st = clientID.ToString() };
-            chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
-            chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
-            chatMessage._userName = new NetworkString() { st = tempUser.name };
-            chatMessage._message = new NetworkString() { st = newMessage };*/
             chatMessages.Add(tempMessage);
             LoadMessageClientRpc(tempMessage);
-            FileManager.Instance.ProcessRequest(0, tempMessage);
+            logEntry = CreateEntry(clientID, tempUser.name, "user", "Chat Message", newMessage);
+            FileManager.Instance.ProcessRequests(logEntry);
         }
-    }
-
-    private ChatMessage BuildServerMessage(string id, string name, string message)
-    {
-        var chatMessage = new ChatMessage();
-        chatMessage._userId = new NetworkString() { st = id };
-        chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
-        chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
-        chatMessage._userName = new NetworkString() { st = name };
-        chatMessage._message = new NetworkString() { st = message };
-        return chatMessage;
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -177,6 +134,18 @@ public class ChatController : NetworkBehaviour
         if (IsOwner) return;
         chatWindow.text += BuildMessageString(theThing);
     }
+
+    [ClientRpc]
+    private void ClearChatLogsClientRpc()
+    {
+        chatWindow.text = string.Empty;
+    }
+
+    [ClientRpc]
+    private void AllLoadChatClientRpc(ChatMessage theThing)
+    {
+        chatWindow.text += BuildMessageString(theThing);
+    }
     #endregion
 
     #region Helper functions
@@ -192,7 +161,6 @@ public class ChatController : NetworkBehaviour
 
     private string BuildMessageString(ChatMessage theThing)
     {
-        //Debug.Log("The owner is probably the server... so... 0?: " + OwnerClientId);
         string returnMessage = "";
         if (theThing._userId.st == "0")
         {
@@ -211,8 +179,37 @@ public class ChatController : NetworkBehaviour
         }
     }
 
+    private ChatMessage BuildServerMessage(string id, string name, string message)
+    {
+        var chatMessage = new ChatMessage();
+        chatMessage._userId = new NetworkString() { st = id };
+        chatMessage._date = new NetworkString() { st = System.DateTime.UtcNow.ToString("MM-dd-yyyy") };
+        chatMessage._time = new NetworkString() { st = System.DateTime.UtcNow.ToString("HH:mm:ss") };
+        chatMessage._userName = new NetworkString() { st = name };
+        chatMessage._message = new NetworkString() { st = message };
+        return chatMessage;
+    }
+
+    private LogEntry CreateEntry(ulong id, string name, string uType, string aName, string message)
+    {
+        logEntry = new LogEntry(
+            DateTime.UtcNow.ToString("MM-dd-yyyy"),
+            DateTime.UtcNow.ToString("HH:mm:ss"),
+            id,
+            name,
+            uType,
+            Vector3.zero,
+            Vector3.zero,
+            "Chat",
+            0,
+            aName,
+            message,
+            ""
+            );
+
+        return logEntry;
+    }
 
     #endregion
-
 }
 

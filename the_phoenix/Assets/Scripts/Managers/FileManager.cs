@@ -1,12 +1,13 @@
-using Mono.Cecil.Cil;
+// using Mono.Cecil.Cil;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
+// using System.Collections.Specialized;
 using System.IO;
 using Unity.Netcode;
+// using UnityEditor.VersionControl;
 using UnityEngine;
-using UnityEngine.UIElements;
+// using UnityEngine.UIElements;
 
 public class FileManager : NetworkBehaviour
 {
@@ -19,8 +20,11 @@ public class FileManager : NetworkBehaviour
     private List<string> _fileNames = new List<string>();
     private List<string> _fileContainer = new List<string>();
     private List<string> _extensions = new List<string>();
-    List<ChatEntry> chatEntries = new List<ChatEntry>();
+    //List<ChatEntry> chatEntries = new List<ChatEntry>();
+    List<LogEntry> chatEntries = new List<LogEntry>();
     List<DocumentEntry> documentEntries = new List<DocumentEntry>();
+    List<AnnotationEntry> annotationEntries = new List<AnnotationEntry>();
+    List<LogEntry> logEntries = new List<LogEntry>();
 
     private void Awake()
     {
@@ -59,12 +63,13 @@ public class FileManager : NetworkBehaviour
             this._paths.Add(Application.streamingAssetsPath + "/Logs/ChatPayloads/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/DocumentPayload/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/AnnotationsPayload/");
+            this._paths.Add(Application.streamingAssetsPath + "/Logs/LogPayload/");
             this._fileNames.Add("ChatTranscripts_" + currentDate);
             this._fileNames.Add("ChatPayload_" + currentDate);
             this._fileNames.Add("DocumentPayload_" + currentDate);
             this._fileNames.Add("AnnotationsPayload_" + currentDate);
+            this._fileNames.Add("LogPayload_" + currentDate);
 
-            //Debug.Log("Here's on Spawn");
             for (int i = 0; i < this._paths.Count; i++)
             {
                 // Debug.Log(i);
@@ -109,19 +114,45 @@ public class FileManager : NetworkBehaviour
         if (Directory.Exists(_paths[x])) return true;
         return false;
     }
-    
-    private bool CheckFile(int code, string fileName)
-    {
-        if (File.Exists(this._paths[code] + fileName )) return true;
-        return false;
-    }
 
     #endregion
 
     #region General Methods
 
+
+
+    public void ProcessRequests(LogEntry log)
+    {
+        #region Date check file name update
+        /*
+         * In the event the date changed, while things were running, we need to create a new file for the new day
+        */
+        string newDate = DateTime.UtcNow.ToString("MMddyyyy");
+        if (newDate != currentDate)
+        {
+            currentDate = newDate;
+            _fileNames[0] = "ChatTranscripts_" + currentDate;
+            _fileNames[1] = "ChatPayload_" + currentDate;
+            _fileNames[2] = "DocumentPayload_" + currentDate;
+            _fileNames[3] = "AnnotationsPayload_" + currentDate;
+            _fileNames[4] = "LogPayload_" + currentDate;
+        }
+        #endregion
+
+        if(log.actionCode == 0)
+        {
+            string transcript = _paths[log.actionCode] + _fileNames[log.actionCode] + _extensions[log.actionCode];
+            if (!File.Exists(transcript)) File.Create(transcript).Close();
+            File.AppendAllText(transcript, BuildTranscriptString(log));
+            chatEntries.Add(log);
+            FileHandler.SaveToJSON(chatEntries, _paths[1] + _fileNames[1] + _extensions[4]);
+            logEntries.Add(log);
+            FileHandler.SaveToJSON(logEntries, _paths[4] + _fileNames[4] + _extensions[4]);
+        }
+    }
+
     // This only handles LOGS on the server side 
-    public void ProcessRequest(int code, ChatMessage message = new ChatMessage(), DocumentEntry entry = null)
+    public void ProcessRequest(int code, ChatMessage message = new ChatMessage(), DocumentEntry entry = null, LogEntry log = null)
     {
 
         /* Codes received should be 0, 1, 2
@@ -141,22 +172,42 @@ public class FileManager : NetworkBehaviour
                 _fileNames[1] = "ChatPayload_" + currentDate;
                 _fileNames[2] = "DocumentPayload_" + currentDate;
                 _fileNames[3] = "AnnotationsPayload_" + currentDate;
+                _fileNames[4] = "LogPayload_" + currentDate;
             }
 
-            //We need to build the name based on the code.... maybe, this is getting tough          
+            //We need to build the name based on the code.... maybe, this is getting tough
+            if(log.actionCode == 0)
+            {
+                string transcript = _paths[log.actionCode] + _fileNames[log.actionCode];
+                if (!File.Exists(transcript)) File.Create(transcript).Close();
+                File.AppendAllText(transcript, BuildChatTranscriptString(message));
+                DataCollection(code, new ChatMessage(), null, log);
+            }
             if (code== 0)
             {
                 // First we check if the applicable files exist.  If not we create them
-                string transcript = _paths[code] + _fileNames[code] + _fileNames[code];
-                if (!File.Exists(transcript)) File.Create(transcript).Close();
-                File.AppendAllText(transcript, BuildChatTranscriptString(message));
-                DataCollection(code, message);
+                // string transcript = _paths[code] + _fileNames[code] + _fileNames[code];
+                // if (!File.Exists(transcript)) File.Create(transcript).Close();
+                // File.AppendAllText(transcript, BuildChatTranscriptString(message));
+                // DataCollection(code, message);
             }
             if(code== 1)
             {
                 DataCollection(code, new ChatMessage(), entry);
             }
+
+            if(code == 3)
+            {
+                Debug.Log("ok...");
+                DataCollection(code, new ChatMessage(), null, log);
+            }
         }
+    }
+
+    private string BuildTranscriptString(LogEntry log)
+    {
+        var transcriptEntry = string.Format("[{0} {1}] {2}({3}) said: {4}\n", log.date, log.time, log.userName, log.userId, log.actionContent);
+        return transcriptEntry;
     }
 
     private string BuildChatTranscriptString(ChatMessage message)
@@ -172,11 +223,11 @@ public class FileManager : NetworkBehaviour
     // The method here is attempting to be generic.  It can handle any input type, document or chat, and send it to a JSON file
     // Currently we're sending a list of these objects every time we write to JSON.  The idea is to change this so we're only sending 
     // The new item and it's being appended.  
-    private void DataCollection(int code, ChatMessage message = new ChatMessage(), DocumentEntry entry = null)
+    private void DataCollection(int code, ChatMessage message = new ChatMessage(), DocumentEntry entry = null, LogEntry log = null)
     {
         if(code == 0)
         {
-            chatEntries.Add(new ChatEntry(message._userId.st, message._userName.st, message._date.st, message._time.st, message._message.st));
+            //chatEntries.Add(new ChatEntry(message._userId.st, message._userName.st, message._date.st, message._time.st, message._message.st));
             FileHandler.SaveToJSON(chatEntries, _paths[code + 1] + _fileNames[code + 1] + _extensions[4]);
         }
         else if(code == 1)
@@ -188,6 +239,14 @@ public class FileManager : NetworkBehaviour
         {
             Debug.Log("this will be where we send the shit... need to build it though");
         }
+        else if(code == 3)
+        {
+            logEntries.Add(log);
+            Debug.Log("Trying here: " + _paths[4] + _fileNames[4] + _extensions[4]);
+            FileHandler.SaveToJSON(logEntries, _paths[4] + _fileNames[4] + _extensions[4]);
+        }
+        
+
     }
 
     #endregion
