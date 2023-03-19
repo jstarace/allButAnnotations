@@ -19,12 +19,15 @@ public class PlayerNetwork: NetworkBehaviour
 
     private int cellSize = 3;
     private DocumentEntry docEntry;
+    private LogEntry logEntry;
 
     private bool textSelected;
     private Vector3 mouseClickPosition;
     private Vector3 mousePreviousPosition;
 
     private Dictionary<Vector2, bool> localSelection;
+
+    public string mySelection;
 
     #region Initialization and update
     private void Awake()
@@ -67,6 +70,7 @@ public class PlayerNetwork: NetworkBehaviour
             textSelected = false;
             mouseClickPosition = default(Vector3);
             mousePreviousPosition= default(Vector3);
+            mySelection = "for(int i=0; i < obj.count; i++)";
         }
     }
     
@@ -122,18 +126,6 @@ public class PlayerNetwork: NetworkBehaviour
         if (textSelected)
         {
             ClearSelection();
-
-/*            foreach (var key in localSelection.Keys)
-            {
-                //Debug.Log(key);
-                //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
-                if (localSelection.TryGetValue(key, out bool value))
-                {
-                    DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
-                }
-            }
-            localSelection = new Dictionary<Vector2, bool>();
-            textSelected = false;*/
         }
         ProcessInputServerRpc(newLoc, code, newChar);
     }
@@ -413,12 +405,21 @@ public class PlayerNetwork: NetworkBehaviour
         //bool move = false;
         bool success = false;
         int x, y;
+        string theType = "keyboard";
+        //int actionCode = 1;
+        string aName = "";
 
-        if(NetworkManager.ConnectedClients.ContainsKey(clientID))
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
+
             #region new Region for Arrow Keys
             if (code >= 1 && code <= 4)
             {
+                if (code == 1) aName = "Arrow Right";
+                else if (code == 2) aName = "Arrow Left";
+                else if (code == 3) aName = "Arrow Up";
+                else if (code == 4) aName = "Arrow Down";
                 MoveServerRpc(targetPos);
                 success = true;
             }
@@ -456,6 +457,7 @@ public class PlayerNetwork: NetworkBehaviour
                         DocumentManager.Instance.InsertRow(transform.position);
                         //DocumentManager.Instance.UpdateDocumentListClientRpc(origPosition, code);
                         MoveServerRpc(targetPos);
+                        aName = "Add new line";
                     }
 
                     // Delete
@@ -463,11 +465,13 @@ public class PlayerNetwork: NetworkBehaviour
                     {
                         DocumentManager.Instance.Delete(transform.position, true, out y, out x);
                         MoveServerRpc(targetPos);
+                        aName = "Delete";
                     }
 
                     // Backspace
                     if (code == 8)
                     {
+                        aName = "Backspace";
                         if (currentListX == 0 && currentListY == 0)
                         {
                             success = false;
@@ -480,6 +484,7 @@ public class PlayerNetwork: NetworkBehaviour
                             };
                             string eMessage = "You're in the first position, nothing to delete";
                             NetworkUI.Instance.DisplayErrorMessageClientRpc(eMessage, clientRpcParams);
+                            success = false;
 
                         }
                         else
@@ -502,6 +507,7 @@ public class PlayerNetwork: NetworkBehaviour
                     // Space & Tab
                     if (code == 9 || code == 10)
                     {
+                        aName = "Space";
                         // Insert character
                         DocumentManager.Instance.InsertCharacter(transform.position, newChar);
                         // Move player
@@ -510,6 +516,7 @@ public class PlayerNetwork: NetworkBehaviour
 
                     if (code == 42)
                     {
+                        aName = "Enter a character";
                         // Insert character
                         DocumentManager.Instance.InsertCharacter(transform.position, newChar);
                         // Move player
@@ -521,15 +528,7 @@ public class PlayerNetwork: NetworkBehaviour
 
         #region Log log it's better than bad it's good
         // Log the move attempted by the user
-        /* Here's where we can get the full payload.  For now, let's track what we're going to want
-         * Date & Time
-         * Username - User ID
-         * User Type
-         * Action attempted
-         * Previous position
-         * Target position
-         * String - if applicable
-         */
+
 
         //This is where the action is logged
         docEntry = new DocumentEntry(
@@ -544,7 +543,26 @@ public class PlayerNetwork: NetworkBehaviour
             transform.position,
             success);
 
-        FileManager.Instance.ProcessRequest(1, new ChatMessage(), docEntry);
+       
+
+        logEntry = new LogEntry(
+            DateTime.UtcNow.ToString("MM-dd-yyyy"),
+            DateTime.UtcNow.ToString("HH:mm:ss"),
+            //(ulong)transform.gameObject.GetComponent<NetworkObject>().GetInstanceID(),
+            clientID,
+            transform.name,
+            "User",
+            origPosition,
+            transform.position,
+            theType,
+            1,
+            aName,
+            newChar,
+            "",
+            code
+            ); ;
+        FileManager.Instance.ProcessRequests(logEntry);
+        //FileManager.Instance.ProcessRequest(1, new ChatMessage(), docEntry);
 
         #endregion
     }

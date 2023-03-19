@@ -69,6 +69,7 @@ public class LogEntry
     [SerializeField] public string actionName;
     [SerializeField] public string actionContent;
     [SerializeField] public string actionAdditionalContent;
+    [SerializeField] public int actionNumber;
     #endregion
 
 
@@ -86,7 +87,8 @@ public class LogEntry
         int actionCode,
         string actionName,
         string actionContent,
-        string actionAdditionalContent
+        string actionAdditionalContent,
+        int actionNumber = 0
         )
     {
         this.date = date;
@@ -101,5 +103,6 @@ public class LogEntry
         this.actionName = actionName;
         this.actionContent = actionContent;
         this.actionAdditionalContent = actionAdditionalContent;
+        this.actionNumber = actionNumber;
     }
 }
