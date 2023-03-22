@@ -74,16 +74,16 @@ public class AnnotationsManager : NetworkBehaviour
     {
         var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
         var player = playerObject.GetComponent<PlayerNetwork>();
-        var theSelected = player.mySelection;
+        //var theSelected = player.mySelection;
 
-        ReceiveAnnotationServerRpc(theAnnotation, theSelected);
+        ReceiveAnnotationServerRpc(theAnnotation);//, theSelected);
         player.ClearSelection();
 
     }
 
     [ServerRpc(RequireOwnership = false)]
 
-    private void ReceiveAnnotationServerRpc(string theAnnotation, string theSelected, ServerRpcParams serverRpcParams = default)
+    private void ReceiveAnnotationServerRpc(string theAnnotation, string theSelected = "", ServerRpcParams serverRpcParams = default)
     {
         var clientID = serverRpcParams.Receive.SenderClientId;
         if(NetworkManager.ConnectedClients.ContainsKey(clientID))
@@ -106,13 +106,13 @@ public class AnnotationsManager : NetworkBehaviour
             backgroundSpriteRenderer = m_SpawnedNetworkObject.transform.Find("Background").GetComponent<SpriteRenderer>();
             selectedText = m_SpawnedNetworkObject.transform.Find("SelectedText").GetComponent<TextMeshPro>();
             annotationText = m_SpawnedNetworkObject.transform.Find("AnnoText").GetComponent<TextMeshPro>();
-            selectedText.text = theSelected;
+            selectedText.text = newAnno;
             //selectedText.text = selection;
             annotationText.text = theAnnotation;
             m_SpawnedNetworkObject.Spawn();
 
 
-            UpdateThatPieceClientRpc(m_SpawnedNetworkObject, theSelected, theAnnotation);
+            UpdateThatPieceClientRpc(m_SpawnedNetworkObject, newAnno, theAnnotation);
             //UpdateThatPieceClientRpc(m_SpawnedNetworkObject, selection, theAnnotation);
 
             LogEntry annoLog = new LogEntry(
@@ -127,7 +127,7 @@ public class AnnotationsManager : NetworkBehaviour
                 2,
                 "Create",
                 theAnnotation,
-                theSelected
+                newAnno
                 );
             FileManager.Instance.ProcessRequests(annoLog);
 

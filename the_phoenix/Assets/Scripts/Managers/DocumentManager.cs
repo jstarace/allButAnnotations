@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 using System.IO;
+using System.Linq;
 // using Mono.Cecil.Cil;
 // using System.Net.Security;
 
@@ -558,7 +559,7 @@ public class DocumentManager : NetworkBehaviour
         };
     }
 
-    public List<ulong> GetSelection(ulong clientID)
+    public string GetSelection(ulong clientID)
     {
         var tempList = new List<ulong>();
         
@@ -572,7 +573,30 @@ public class DocumentManager : NetworkBehaviour
             }
         }
 
-        return tempList;
+        var tempLocations = new List<Vector2>();
+        foreach(var id in tempList)
+        {
+            int x, y;
+            var tempObject = NetworkManager.SpawnManager.SpawnedObjects[id].transform.localPosition;
+            Vector3 test = new Vector3(tempObject.x, tempObject.y);
+            Utilities.GetListXY(test, out x, out y);
+            Vector2 tempVec = new Vector2(x, y);
+            tempLocations.Add(tempVec);
+        }
+
+        var sortedLocations = tempLocations.OrderBy(y => y.y).ThenBy(y => y.x).ToList();
+
+        string theWord = "";
+
+        for(int i = 0; i < sortedLocations.Count; i++)
+        {
+            int x, y;
+            y = (int)sortedLocations[i].y;
+            x = (int)sortedLocations[i].x;
+            theWord += NetworkManager.SpawnManager.SpawnedObjects[_charIds[y][x]].transform.GetComponent<TextMesh>().text;
+        }
+
+        return theWord;
     }
 
     public char GetCharacterById(ulong netID)
@@ -581,7 +605,6 @@ public class DocumentManager : NetworkBehaviour
         char tempChar = tempObject.GetComponent<TextMesh>().text[0];
         return tempChar;
     }
-
 
     #region ServerRpcs
 

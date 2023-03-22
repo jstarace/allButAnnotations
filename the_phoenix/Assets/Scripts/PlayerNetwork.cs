@@ -6,6 +6,7 @@ using UnityEngine;
 using Random = UnityEngine.Random;
 using Cinemachine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class PlayerNetwork: NetworkBehaviour
 {
@@ -26,8 +27,6 @@ public class PlayerNetwork: NetworkBehaviour
     private Vector3 mousePreviousPosition;
 
     private Dictionary<Vector2, bool> localSelection;
-
-    public string mySelection;
 
     #region Initialization and update
     private void Awake()
@@ -70,7 +69,6 @@ public class PlayerNetwork: NetworkBehaviour
             textSelected = false;
             mouseClickPosition = default(Vector3);
             mousePreviousPosition= default(Vector3);
-            mySelection = "for(int i=0; i < obj.count; i++)";
         }
     }
     
@@ -178,8 +176,6 @@ public class PlayerNetwork: NetworkBehaviour
             */
             foreach(var key in localSelection.Keys)
             {
-                //Debug.Log(key);
-                //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
                 if(localSelection.TryGetValue(key, out bool value))
                 {
                     DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
@@ -344,7 +340,6 @@ public class PlayerNetwork: NetworkBehaviour
 
     private void PreProcessHighlight(Vector2 loc)
     {
-
         if (!localSelection.ContainsKey(loc))
         {
             localSelection.Add(loc, true);
