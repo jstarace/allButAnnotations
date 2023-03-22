@@ -21,6 +21,7 @@ public class PlayerNetwork: NetworkBehaviour
     private int cellSize = 3;
     private DocumentEntry docEntry;
     private LogEntry logEntry;
+    private LogEntry mouseEntry;
 
     private bool textSelected;
     private Vector3 mouseClickPosition;
@@ -130,10 +131,14 @@ public class PlayerNetwork: NetworkBehaviour
 
     public void ClearSelection()
     {
+        /*
+         * Iterate through the dictionary.  For any keys with value 'True'
+         * We tell the server to remove the user from the list
+         * Then we delete the replace the dictionary with a new one
+         * and set the selected flag to false
+        */
         foreach (var key in localSelection.Keys)
         {
-            //Debug.Log(key);
-            //DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
             if (localSelection.TryGetValue(key, out bool value))
             {
                 DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
@@ -156,36 +161,89 @@ public class PlayerNetwork: NetworkBehaviour
     public void ProcessSingleLeftClick(Vector3 clickLocation)
     {
         if (!IsOwner) return;
-        //if(!IsLocalPlayer) return;
-        //DocumentManager.Instance.ResetHighlightsServerRpc();
-
         int x, y;
         Vector3 targetLoc;
+
         Utilities.GetListXY(clickLocation, out x, out y);
         Utilities.GetWorldXY(x, y, out targetLoc);
+
         mouseClickPosition = targetLoc;
         mousePreviousPosition= targetLoc;
         
+        DirectProcessRequestServerRpc(targetLoc, textSelected);
+        
         if(textSelected)
         {
-            /*
-             * Iterate through the dictionary.  For any keys with value 'True'
-             * We tell the server to remove the user from the list
-             * Then we delete the replace the dictionary with a new one
-             * and set the selected flag to false
-            */
-            foreach(var key in localSelection.Keys)
-            {
-                if(localSelection.TryGetValue(key, out bool value))
-                {
-                    DocumentManager.Instance.ToggleHighlightServerRpc(key, false);
-                }
-            }
+            ClearSelection();
             localSelection = new Dictionary<Vector2, bool>();
             textSelected = false;
         }
         textSelected = true;
         ProcessMouseMoveServerRpc(mouseClickPosition);
+    }
+
+
+    [ServerRpc(RequireOwnership = false)]
+
+    public void DirectProcessReleaseServerRpc(Vector3 targetLoc, Vector3 originalLoc, ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            var player = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientID);
+            mouseEntry = new LogEntry(
+                DateTime.UtcNow.ToString("MM-dd-yyyy"),
+                DateTime.UtcNow.ToString("HH:mm:ss"),
+                clientID,
+                player.name,
+                "user",
+                originalLoc,
+                targetLoc,
+                "Mouse Action",
+                3,
+                "Release After Hold",
+                "Selected Text:",
+                DocumentManager.Instance.GetSelection(clientID)
+                );
+            FileManager.Instance.ProcessRequests(mouseEntry);
+        }
+    }
+
+
+    [ServerRpc(RequireOwnership = false)]
+
+    public void DirectProcessRequestServerRpc(Vector3 targetLoc, bool textSelected, ServerRpcParams serverRpcParams = default)
+    {
+        var clientID = serverRpcParams.Receive.SenderClientId;
+
+        if (NetworkManager.ConnectedClients.ContainsKey(clientID))
+        {
+            var player = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientID);
+            mouseEntry = new LogEntry(
+                DateTime.UtcNow.ToString("MM-dd-yyyy"),
+                DateTime.UtcNow.ToString("HH:mm:ss"),
+                clientID,
+                player.name,
+                "user",
+                targetLoc,
+                targetLoc,
+                "Mouse Action",
+                3,
+                "Single Left Click",
+                "Text was selected when click",
+                textSelected.ToString()
+                );
+            FileManager.Instance.ProcessRequests(mouseEntry);
+        }
+    }
+
+    public void ProcessLeftClickRelease(Vector3 mousePosition)
+    {
+        if(IsSelected())
+        {
+            DirectProcessReleaseServerRpc(mousePosition, mouseClickPosition);
+        }
     }
 
     public void ProcessLeftClickHold(Vector3 mousePosition)
@@ -525,7 +583,7 @@ public class PlayerNetwork: NetworkBehaviour
         // Log the move attempted by the user
 
 
-        //This is where the action is logged
+/*        //This is where the action is logged
         docEntry = new DocumentEntry(
             DateTime.UtcNow.ToString("MM-dd-yyyy"),
             DateTime.UtcNow.ToString("HH:mm:ss"),
@@ -537,7 +595,7 @@ public class PlayerNetwork: NetworkBehaviour
             origPosition,
             transform.position,
             success);
-
+*/
        
 
         logEntry = new LogEntry(

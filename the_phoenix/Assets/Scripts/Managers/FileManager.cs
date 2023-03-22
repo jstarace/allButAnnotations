@@ -25,6 +25,7 @@ public class FileManager : NetworkBehaviour
 
     List<LogEntry> documentEntries = new List<LogEntry>();
     List<LogEntry> annotationEntries = new List<LogEntry>();
+    List<LogEntry> mouseMovementEntries = new List<LogEntry>();
     List<LogEntry> logEntries = new List<LogEntry>();
 
     private void Awake()
@@ -60,21 +61,21 @@ public class FileManager : NetworkBehaviour
             this._paths.Add(Application.streamingAssetsPath + "/Logs/ChatPayloads/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/DocumentPayload/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/AnnotationsPayload/");
+            this._paths.Add(Application.streamingAssetsPath + "/Logs/MouseMovementPayload/");
             this._paths.Add(Application.streamingAssetsPath + "/Logs/LogPayload/");
             this._fileNames.Add("ChatTranscripts_" + currentDate);
             this._fileNames.Add("ChatPayload_" + currentDate);
             this._fileNames.Add("DocumentPayload_" + currentDate);
             this._fileNames.Add("AnnotationsPayload_" + currentDate);
+            this._fileNames.Add("MouseMovementPayload_" + currentDate);
             this._fileNames.Add("LogPayload_" + currentDate);
 
             for (int i = 0; i < this._paths.Count; i++)
             {
-                // Debug.Log(i);
                 if (!CheckFileStorage(i)) 
                 {
                     Directory.CreateDirectory(this._paths[i]);
                 }
-                //Debug.Log(this._fileNames[i]);
             }
         }
         if (IsClient)
@@ -153,8 +154,13 @@ public class FileManager : NetworkBehaviour
             FileHandler.SaveToJSON(annotationEntries, _paths[log.actionCode + 1] + _fileNames[log.actionCode + 1] + _extensions[4]);
 
         }
+        else if(log.actionCode == 3)
+        {
+            mouseMovementEntries.Add(log);
+            FileHandler.SaveToJSON(mouseMovementEntries, _paths[log.actionCode + 1] + _fileNames[log.actionCode + 1] + _extensions[4]);
+        }
         logEntries.Add(log);
-        FileHandler.SaveToJSON(logEntries, _paths[4] + _fileNames[4] + _extensions[4]);
+        FileHandler.SaveToJSON(logEntries, _paths[5] + _fileNames[5] + _extensions[4]);
     }
 
     private string BuildTranscriptString(LogEntry log)
@@ -176,11 +182,13 @@ public class FileManager : NetworkBehaviour
         var clientID = serverRpcParams.Receive.SenderClientId;
         if (NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
+            var playerObject = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientID);
+            var uName = playerObject.name;
             LogEntry isoReq = new LogEntry(
                 DateTime.UtcNow.ToString("MM-dd-yyyy"),
                 DateTime.UtcNow.ToString("HH:mm:ss"),
                 clientID,
-                "For Now",
+                uName,
                 "user",
                 Vector3.zero,
                 Vector3.zero,
@@ -237,14 +245,13 @@ public class FileManager : NetworkBehaviour
     {
         if (IsOwner) return;
 
-        // NOTE: THE CONTAINER IS EMPTIED RIGHT BEFORE THIS METHOD IS CALLED.  THIS WAY, THE CLIENT SHOULD 
-        //       ONLY SAVE WHAT IS VISIBLE ON THE SCREEN AND NOTHING MORE.
-
-        // We don't want to overwrite files on clients so, we check if the file exists.  so, first step, build out the file name
-        
+        /*
+         * NOTE: THE CONTAINER IS EMPTIED RIGHT BEFORE THIS METHOD IS CALLED.  THIS WAY, THE CLIENT SHOULD 
+         *       ONLY SAVE WHAT IS VISIBLE ON THE SCREEN AND NOTHING MORE.
+         *
+         * We don't want to overwrite files on clients so, we check if the file exists.  so, first step, build out the file name
+        */
         string entirePath = this._paths[index] + fileName + this._extensions[index];
-
-        
         
         // The.... check if it exists
         if (File.Exists(entirePath))
@@ -267,9 +274,10 @@ public class FileManager : NetworkBehaviour
             File.AppendAllText(entirePath, _fileContainer[i]);
         }
 
-        /* Now we check that the file exists
-        *  NOTE: WE DO NOT CHECK THAT THE FILE HAS ANY CONTENT OR VALIDATE ANY CONTENT IN A FILE
-        *  WE SIMPLY VERIFY THE FILE EXISTS!!!!
+        /* 
+         * Now we check that the file exists
+         * NOTE: WE DO NOT CHECK THAT THE FILE HAS ANY CONTENT OR VALIDATE ANY CONTENT IN A FILE
+         * WE SIMPLY VERIFY THE FILE EXISTS!!!!
         */
         if (File.Exists(entirePath))
         {
@@ -280,26 +288,12 @@ public class FileManager : NetworkBehaviour
         {
             // If it doesn't tell them
             DocumentManager.Instance.SetConfirmationText("Better Luck Next Time");
-        }
-        
+        }   
     }
-
     #endregion
-
 
     public void LoadADocument(string theName)
     {
         ServerLoadFile.Load(theName);
     }
-
-
-
-
-
-
-
-
-
-
-
 }

@@ -74,46 +74,33 @@ public class AnnotationsManager : NetworkBehaviour
     {
         var playerObject = NetworkManager.Singleton.SpawnManager.GetLocalPlayerObject();
         var player = playerObject.GetComponent<PlayerNetwork>();
-        //var theSelected = player.mySelection;
 
-        ReceiveAnnotationServerRpc(theAnnotation);//, theSelected);
+        ReceiveAnnotationServerRpc(theAnnotation);
         player.ClearSelection();
 
     }
 
     [ServerRpc(RequireOwnership = false)]
 
-    private void ReceiveAnnotationServerRpc(string theAnnotation, string theSelected = "", ServerRpcParams serverRpcParams = default)
+    private void ReceiveAnnotationServerRpc(string theAnnotation, ServerRpcParams serverRpcParams = default)
     {
         var clientID = serverRpcParams.Receive.SenderClientId;
         if(NetworkManager.ConnectedClients.ContainsKey(clientID))
         {
-            //Debug.Log(theAnnotation);
             var newAnno = DocumentManager.Instance.GetSelection(clientID);
-            // string selection = string.Empty;
-/*            foreach (var anno in newAnno)
-            {
-                selection += DocumentManager.Instance.GetCharacterById(anno);
-            }*/
-
             var player = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientID);
+            
             m_PrefabInstance = Instantiate(PrefabToSpawn);
-
             m_PrefabInstance.transform.position = new Vector3(-125, player.transform.position.y);
-
-
             m_SpawnedNetworkObject = m_PrefabInstance.GetComponent<NetworkObject>();
             backgroundSpriteRenderer = m_SpawnedNetworkObject.transform.Find("Background").GetComponent<SpriteRenderer>();
             selectedText = m_SpawnedNetworkObject.transform.Find("SelectedText").GetComponent<TextMeshPro>();
             annotationText = m_SpawnedNetworkObject.transform.Find("AnnoText").GetComponent<TextMeshPro>();
             selectedText.text = newAnno;
-            //selectedText.text = selection;
             annotationText.text = theAnnotation;
             m_SpawnedNetworkObject.Spawn();
 
-
             UpdateThatPieceClientRpc(m_SpawnedNetworkObject, newAnno, theAnnotation);
-            //UpdateThatPieceClientRpc(m_SpawnedNetworkObject, selection, theAnnotation);
 
             LogEntry annoLog = new LogEntry(
                 DateTime.UtcNow.ToString("MM-dd-yyyy"),
